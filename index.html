@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0f0c1a" />
+  <title>פנקס בייביסיטר</title>
+
+  <!-- React 18 -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Lucide Icons (UMD) -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <!-- Babel standalone (transpiles JSX in-browser) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #root { height: 100%; }
+    body { background: #0f0c1a; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useMemo, useRef } = React;
+    const ReactDOM_pkg = ReactDOM;
+
+    // Lucide icon shim — wraps lucide UMD icons as React components
+    const makeIcon = (name) => ({ size = 16, ...props } = {}) => {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (ref.current && window.lucide) {
+          ref.current.innerHTML = '';
+          const svg = window.lucide.createElement(window.lucide[name] || window.lucide['Circle']);
+          svg.setAttribute('width', size);
+          svg.setAttribute('height', size);
+          svg.setAttribute('stroke', 'currentColor');
+          svg.setAttribute('stroke-width', '2');
+          svg.setAttribute('fill', 'none');
+          svg.setAttribute('stroke-linecap', 'round');
+          svg.setAttribute('stroke-linejoin', 'round');
+          ref.current.appendChild(svg);
+        }
+      }, [size]);
+      return React.createElement('span', { ref, style: { display: 'inline-flex', alignItems: 'center' }, ...props });
+    };
+    const ChevronLeft  = makeIcon('ChevronLeft');
+    const ChevronRight = makeIcon('ChevronRight');
+    const Plus         = makeIcon('Plus');
+    const Clock        = makeIcon('Clock');
+    const ArrowRight   = makeIcon('ArrowRight');
+    const ArrowLeft    = makeIcon('ArrowLeft');
+    const X            = makeIcon('X');
+    const Languages    = makeIcon('Languages');
+    const Trash2       = makeIcon('Trash2');
+    const Edit3        = makeIcon('Pencil');
+    const Download     = makeIcon('Download');
+
+    // ReactDOM.createPortal shim
+    const ReactDOM = {
+      createPortal: (children, container) => ReactDOM_pkg.createPortal(children, container)
+    };
+
+/* ─────────────────────────────────────────────
+   i18n
+───────────────────────────────────────────── */
+const T = {
+  en: {
+    appTitle: "Nanny Ledger", tagline: "Household balances, elegantly tracked.",
+    addBabysitter: "Add Babysitter", balanceOwe: "You owe", balanceCredit: "Prepaid credit",
+    balanceSettled: "Settled", noBabysitters: "No babysitters yet.",
+    getStarted: "Tap above to add your first babysitter.", addEntry: "Add Entry",
+    shiftHistory: "Ledger History", earned: "Earned", paid: "Paid", hours: "hrs",
+    perHour: "/hr",
+    formDate: "Date", formStart: "Start Time", formEnd: "End Time",
+    formBonus: "Bonus (₪)", formPaid: "Amount Paid (₪)", formPrepaid: "Prepaid Amount (₪)",
+    formNote: "Note (Optional)", btnNow: "Now", btnSave: "Save", btnCancel: "Cancel",
+    modalNewNanny: "New Babysitter", formName: "Name", formRate: "Hourly Rate (₪)",
+    summaryTotalWorked: "Hours", summaryTotalPaid: "Paid",
+    typeShift: "Shift", typePayment: "Payment", typePrepaid: "Prepaid", typeBonus: "Bonus",
+    entryTypeShift: "Shift", entryTypePayment: "Payment Only", entryTypePrepaid: "Prepaid",
+    back: "Back", deleteConfirm: "Delete?", yes: "Delete", no: "Cancel",
+    noEntries: "No entries yet. Add a shift or payment.",
+    currentBalance: "Balance", crossesMidnight: "⚠ Crosses midnight",
+    entriesCount: "entries", prepaidNote: "Prepaid — babysitter owes hours",
+    editEntry: "Edit Entry", exportCSV: "Export CSV",
+    longPressHint: "Long-press any entry to edit or delete",
+    csvFilename: "nanny-ledger", deleteSitter: "Delete",
+    shareSummary: "Share Summary",
+    shareTitle: "Babysitter Summary",
+    shareShifts: "shifts", shareHours: "hours", sharePaid: "Paid",
+    shareBalance: "Balance", shareThanks: "Thanks!",
+    shareMonth: "Summary for",
+    validationTimes: "Please enter start and end times.",
+    validationAmount: "Please enter an amount.",
+    copied: "Copied to clipboard!",
+    menuShare: "Share Summary", menuExport: "Export CSV",
+    menuEdit: "Edit Babysitter", menuDelete: "Delete Babysitter",
+    editSitterTitle: "Edit Babysitter",
+  },
+  he: {
+    appTitle: "פנקס בייביסיטר", tagline: "מעקב שעות ותשלומים בסטייל.",
+    addBabysitter: "הוסף בייביסיטר", balanceOwe: "חוב", balanceCredit: "שולם מראש",
+    balanceSettled: "מאוזן", noBabysitters: "לא נוספו בייביסיטרים.",
+    getStarted: "לחץ למעלה כדי להוסיף.", addEntry: "הוסף רשומה",
+    shiftHistory: "היסטוריית פנקס", earned: "הרוויחה", paid: "שולם", hours: "שע׳",
+    perHour: "/ש׳",
+    formDate: "תאריך", formStart: "שעת התחלה", formEnd: "שעת סיום",
+    formBonus: "בונוס (₪)", formPaid: "סכום ששולם (₪)", formPrepaid: "תשלום מראש (₪)",
+    formNote: "הערה (אופציונלי)", btnNow: "עכשיו", btnSave: "שמור", btnCancel: "ביטול",
+    modalNewNanny: "בייביסיטר חדש/ה", formName: "שם", formRate: "תעריף שעתי (₪)",
+    summaryTotalWorked: "שעות", summaryTotalPaid: "שולם",
+    typeShift: "משמרת", typePayment: "תשלום", typePrepaid: "מראש", typeBonus: "בונוס",
+    entryTypeShift: "משמרת", entryTypePayment: "תשלום בלבד", entryTypePrepaid: "תשלום מראש",
+    back: "חזור", deleteConfirm: "למחוק?", yes: "מחק", no: "ביטול",
+    noEntries: "אין רשומות. הוסף משמרת או תשלום.",
+    currentBalance: "יתרה", crossesMidnight: "⚠ עובר חצות",
+    entriesCount: "רשומות", prepaidNote: "שולם מראש — חייבת שעות",
+    editEntry: "ערוך רשומה", exportCSV: "ייצא CSV",
+    longPressHint: "לחיצה ארוכה על רשומה לעריכה או מחיקה",
+    csvFilename: "pnkas-babysitter", deleteSitter: "מחק",
+    shareSummary: "שתף סיכום",
+    shareTitle: "סיכום בייביסיטר",
+    shareShifts: "משמרות", shareHours: "שעות", sharePaid: "שולם",
+    shareBalance: "יתרה", shareThanks: "תודה!",
+    shareMonth: "סיכום עבור",
+    validationTimes: "נא להזין שעת התחלה וסיום.",
+    validationAmount: "נא להזין סכום.",
+    copied: "הועתק ללוח!",
+    menuShare: "שתף סיכום", menuExport: "ייצא CSV",
+    menuEdit: "ערוך בייביסיטר", menuDelete: "מחק בייביסיטר",
+    editSitterTitle: "ערוך בייביסיטר",
+  }
+};
+
+/* ─────────────────────────────────────────────
+   Hooks & Helpers
+───────────────────────────────────────────── */
+function useStickyState(def, key) {
+  const [val, setVal] = useState(() => {
+    try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : def; } catch { return def; }
+  });
+  useEffect(() => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} }, [key, val]);
+  return [val, setVal];
+}
+
+const calcHours = (s, e) => {
+  if (!s || !e) return 0;
+  const [sh, sm] = s.split(':').map(Number);
+  const [eh, em] = e.split(':').map(Number);
+  let d = (eh + em / 60) - (sh + sm / 60);
+  if (d < 0) d += 24;
+  return parseFloat(d.toFixed(2));
+};
+const nowStr = () => { const n = new Date(); return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`; };
+const todayStr = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; };
+const groupByMonth = (entries, lang) => {
+  const groups = {};
+  entries.forEach(e => {
+    const dt = new Date(e.date + 'T00:00:00');
+    const key = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+    const label = dt.toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-GB', { month: 'long', year: 'numeric' });
+    if (!groups[key]) groups[key] = { label, entries: [] };
+    groups[key].entries.push(e);
+  });
+  return Object.values(groups);
+};
+
+const doExportCSV = (sitter, t) => {
+  const headers = ['Date','Type','Start','End','Hours','Rate','Earned','Bonus','Paid','Balance Effect','Note'];
+  const rows = sitter.entries.map(e => [
+    e.date, e.type || 'shift', e.start || '', e.end || '',
+    e.hours, sitter.rate, e.earned.toFixed(2), e.bonus,
+    e.paid.toFixed(2), (e.earned - e.paid).toFixed(2),
+    '"' + (e.note || '').replace(/"/g, '""') + '"'
+  ]);
+  const totalEarned = sitter.entries.reduce((a,e) => a + e.earned, 0);
+  const totalPaid   = sitter.entries.reduce((a,e) => a + e.paid,   0);
+  rows.push([]);
+  rows.push(['','','','','','TOTAL', totalEarned.toFixed(2),'', totalPaid.toFixed(2), sitter.balance.toFixed(2),'']);
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${t.csvFilename}-${sitter.name}-${todayStr()}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+};
+
+
+const buildShareText = (sitter, t, lang) => {
+  const months = groupByMonth(sitter.entries, lang);
+  const lines = [];
+  months.forEach(group => {
+    const shifts   = group.entries.filter(e => e.hours > 0).length;
+    const hours    = group.entries.reduce((a, e) => a + e.hours, 0);
+    const paid     = group.entries.reduce((a, e) => a + e.paid,  0);
+    lines.push(`📅 ${t.shareMonth} ${group.label}:`);
+    lines.push(`   ${shifts} ${t.shareShifts} · ${hours.toFixed(1)} ${t.shareHours}`);
+    lines.push(`   ${t.sharePaid}: ₪${paid.toFixed(0)}`);
+  });
+  const bal = sitter.balance;
+  const balStr = bal === 0
+    ? t.balanceSettled
+    : bal > 0
+      ? `${t.balanceOwe} ₪${bal.toFixed(2)}`
+      : `${t.balanceCredit} ₪${Math.abs(bal).toFixed(2)}`;
+  const text = [
+    `👶 ${t.shareTitle} — ${sitter.name}`,
+    `💰 ${t.shareBalance}: ${balStr}`,
+    '',
+    ...lines,
+    '',
+    t.shareThanks,
+  ].join('\n');
+  return text;
+};
+
+const doShare = async (sitter, t, lang, onToast) => {
+  const text = buildShareText(sitter, t, lang);
+  if (navigator.share) {
+    try { await navigator.share({ title: t.shareTitle, text }); return; } catch {}
+  }
+  // Fallback: copy + WhatsApp link
+  try { await navigator.clipboard.writeText(text); onToast(t.copied); } catch {}
+  const encoded = encodeURIComponent(text);
+  window.open(`https://wa.me/?text=${encoded}`, '_blank');
+};
+
+/* ─────────────────────────────────────────────
+   CSS
+───────────────────────────────────────────── */
+const css = `
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+  *,*::before,*::after{box-sizing:border-box;}
+  :root{
+    --bg:#0f0c1a; --glass:rgba(255,255,255,0.07); --glass-border:rgba(255,255,255,0.14);
+    --glass-hover:rgba(255,255,255,0.11); --text:#f1eeff;
+    --text-muted:rgba(241,238,255,0.55); --text-dim:rgba(241,238,255,0.35);
+    --accent:#a78bfa; --green:#34d399; --red:#f87171; --amber:#fbbf24;
+    --font-serif:'DM Serif Display',Georgia,serif; --font-sans:'DM Sans',system-ui,sans-serif;
+    --radius:20px; --radius-sm:12px; --shadow:0 8px 32px rgba(0,0,0,0.4);
+  }
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh;overflow-x:hidden;}
+  ::selection{background:rgba(167,139,250,0.35);}
+  input[type=date]::-webkit-calendar-picker-indicator,
+  input[type=time]::-webkit-calendar-picker-indicator{filter:invert(0.8);cursor:pointer;}
+  input,textarea{color-scheme:dark;}
+
+  .orbs{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+  .orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:0.35;}
+  .orb1{width:600px;height:600px;background:#7c3aed;top:-200px;left:-150px;animation:float1 18s ease-in-out infinite;}
+  .orb2{width:500px;height:500px;background:#db2777;bottom:-150px;right:-100px;animation:float2 22s ease-in-out infinite;}
+  .orb3{width:400px;height:400px;background:#0ea5e9;top:40%;left:50%;transform:translate(-50%,-50%);animation:float3 16s ease-in-out infinite;}
+  @keyframes float1{0%,100%{transform:translate(0,0)}50%{transform:translate(60px,40px)}}
+  @keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,-60px)}}
+  @keyframes float3{0%,100%{transform:translate(-50%,-50%)}50%{transform:translate(-50%,-42%)}}
+
+  .glass{background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
+  .fade-in{animation:fadeIn 0.35s ease forwards;}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+  .stagger>*{opacity:0;animation:slideUp 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;}
+  .stagger>*:nth-child(1){animation-delay:0ms}.stagger>*:nth-child(2){animation-delay:60ms}
+  .stagger>*:nth-child(3){animation-delay:120ms}.stagger>*:nth-child(4){animation-delay:180ms}
+  .stagger>*:nth-child(5){animation-delay:240ms}.stagger>*:nth-child(6){animation-delay:300ms}
+  .stagger>*:nth-child(7){animation-delay:360ms}.stagger>*:nth-child(8){animation-delay:420ms}
+
+  .drag-handle{width:40px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:0 auto 20px;}
+
+  .btn-primary{background:linear-gradient(135deg,#7c3aed,#db2777);color:#fff;border:none;cursor:pointer;font-family:var(--font-sans);font-weight:600;border-radius:50px;transition:all 0.2s;box-shadow:0 4px 20px rgba(124,58,237,0.4);}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(124,58,237,0.55);}
+  .btn-primary:active{transform:scale(0.97);}
+  .btn-ghost{background:var(--glass);border:1px solid var(--glass-border);color:var(--text);cursor:pointer;font-family:var(--font-sans);border-radius:50px;transition:all 0.2s;backdrop-filter:blur(12px);}
+  .btn-ghost:hover{background:var(--glass-hover);}
+  .btn-icon{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:var(--text);border-radius:50%;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
+  .btn-icon:hover{background:rgba(255,255,255,0.14);}
+
+  .input-glass{width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:var(--text);border-radius:var(--radius-sm);padding:12px 16px;font-family:var(--font-sans);font-size:15px;outline:none;transition:all 0.2s;}
+  .input-glass::placeholder{color:var(--text-dim);}
+  .input-glass:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(167,139,250,0.2);background:rgba(255,255,255,0.09);}
+
+  .tab-btn{padding:8px 15px;border-radius:50px;border:1px solid transparent;cursor:pointer;font-family:var(--font-sans);font-size:13px;font-weight:500;transition:all 0.2s;}
+  .tab-btn.active{background:linear-gradient(135deg,#7c3aed,#db2777);color:#fff;}
+  .tab-btn.inactive{background:var(--glass);border-color:var(--glass-border);color:var(--text-muted);}
+  .tab-btn.inactive:hover{color:var(--text);background:var(--glass-hover);}
+
+  .sitter-card{transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1);cursor:pointer;}
+  .sitter-card:hover{transform:translateY(-4px) scale(1.01);box-shadow:0 16px 48px rgba(0,0,0,0.5);}
+  .sitter-card:active{transform:scale(0.98);}
+
+  /* Entry row */
+  .entry-row{position:relative;border-radius:16px;user-select:none;-webkit-user-select:none;touch-action:manipulation;}
+  .entry-row-inner{display:flex;align-items:center;gap:11px;padding:13px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;transition:all 0.15s;}
+
+  .pill{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:50px;font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;}
+  .pill-shift{background:rgba(167,139,250,0.18);color:#c4b5fd;border:1px solid rgba(167,139,250,0.25);}
+  .pill-payment{background:rgba(52,211,153,0.15);color:#6ee7b7;border:1px solid rgba(52,211,153,0.25);}
+  .pill-prepaid{background:rgba(251,191,36,0.15);color:#fcd34d;border:1px solid rgba(251,191,36,0.25);}
+  .pill-bonus{background:rgba(244,114,182,0.18);color:#f9a8d4;border:1px solid rgba(244,114,182,0.25);}
+
+  .stat-card{padding:clamp(9px,2.8vw,15px);border-radius:var(--radius);min-width:0;overflow:hidden;}
+  .stat-value{font-family:var(--font-serif);font-size:clamp(14px,4vw,22px);line-height:1.2;word-break:break-word;}
+  .stat-balance{font-size:clamp(11px,2.8vw,15px);line-height:1.3;word-break:break-word;font-weight:600;}
+  .section-label{font-size:clamp(8px,2vw,10px);font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);z-index:50;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn 0.2s ease;}
+  @media(min-width:640px){.modal-overlay{align-items:center;}}
+  .modal-sheet{width:100%;max-width:520px;max-height:92vh;overflow-y:auto;border-radius:28px 28px 0 0;padding:22px;background:rgba(18,12,35,0.96);border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(40px);box-shadow:0 -8px 40px rgba(0,0,0,0.5);animation:slideUp 0.4s cubic-bezier(0.34,1.56,0.64,1);}
+  @media(min-width:640px){.modal-sheet{border-radius:28px;}}
+
+  .month-divider{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);padding:14px 0 7px;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:7px;}
+
+  .hint-bar{font-size:11px;color:var(--text-dim);text-align:center;padding:6px 0 10px;display:flex;align-items:center;justify-content:center;gap:5px;}
+  @keyframes shake{0%,100%{transform:translateX(0)}15%{transform:translateX(-6px)}35%{transform:translateX(6px)}55%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+  .shake{animation:shake 0.45s ease;}
+  .field-error{border-color:var(--red)!important;box-shadow:0 0 0 3px rgba(248,113,113,0.2)!important;}
+  .error-msg{font-size:11px;color:var(--red);margin-top:4px;display:flex;align-items:center;gap:4px;}
+  @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+  .toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:rgba(18,12,35,0.95);border:1px solid rgba(255,255,255,0.18);backdrop-filter:blur(20px);color:var(--text);padding:10px 20px;border-radius:50px;font-size:13px;font-weight:600;z-index:200;white-space:nowrap;box-shadow:0 4px 24px rgba(0,0,0,0.4);animation:toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1);}
+  /* Back button */
+  .btn-back{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.16);color:var(--text);border-radius:50px;padding:8px 14px 8px 10px;cursor:pointer;font-family:var(--font-sans);font-size:13px;font-weight:600;letter-spacing:0.03em;transition:all 0.2s;backdrop-filter:blur(12px);}
+  .btn-back:hover{background:rgba(255,255,255,0.13);transform:translateX(-2px);}
+  .btn-back:active{transform:scale(0.96);}
+  [dir=rtl] .btn-back:hover{transform:translateX(2px);}
+  /* Kebab / dropdown */
+  .kebab-wrap{position:relative;z-index:10;}
+  .kebab-btn{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);color:var(--text);border-radius:10px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;font-size:18px;font-weight:700;letter-spacing:0.05em;}
+  .kebab-btn:hover{background:rgba(255,255,255,0.14);}
+  .kebab-btn.open{background:rgba(167,139,250,0.15);border-color:rgba(167,139,250,0.3);}
+  @keyframes dropIn{from{opacity:0;transform:scale(0.92) translateY(-6px)}to{opacity:1;transform:scale(1) translateY(0)}}
+  .dropdown{position:fixed;min-width:190px;background:rgba(14,10,28,0.97);border:1px solid rgba(255,255,255,0.14);border-radius:16px;overflow:hidden;z-index:9999;box-shadow:0 8px 40px rgba(0,0,0,0.7);backdrop-filter:blur(28px);animation:dropIn 0.18s cubic-bezier(0.34,1.4,0.64,1);}
+  .dropdown-item{display:flex;align-items:center;gap:10px;width:100%;padding:13px 16px;background:none;border:none;border-bottom:1px solid rgba(255,255,255,0.06);color:var(--text);cursor:pointer;font-family:var(--font-sans);font-size:14px;font-weight:500;text-align:start;transition:background 0.15s;}
+  .dropdown-item:last-child{border-bottom:none;}
+  .dropdown-item:hover{background:rgba(255,255,255,0.07);}
+  .dropdown-item.danger{color:var(--red);}
+  .dropdown-item.danger:hover{background:rgba(248,113,113,0.1);}
+  /* Entry row ⋯ button */
+  .entry-menu-btn{flex-shrink:0;background:none;border:none;color:var(--text-dim);cursor:pointer;padding:4px 6px;border-radius:6px;font-size:16px;font-weight:700;line-height:1;transition:all 0.15s;}
+  .entry-menu-btn:hover{color:var(--text);background:rgba(255,255,255,0.08);}
+  /* Sitter card ⋯ sits inside the card */
+  .card-menu-wrap{position:relative;z-index:10;}
+`;
+
+/* ─────────────────────────────────────────────
+   Balance Display
+───────────────────────────────────────────── */
+function BalanceDisplay({ balance, t, large }) {
+  const cls = large ? 'stat-balance' : '';
+  const sm = large ? {} : { fontSize: 13, fontWeight: 500 };
+  if (balance === 0) return <span className={cls} style={{ ...sm, color: 'var(--text-muted)' }}>{t.balanceSettled}</span>;
+  if (balance > 0) return <span className={cls} style={{ ...sm, color: 'var(--red)' }}>{t.balanceOwe} <strong>₪{balance.toFixed(2)}</strong></span>;
+  return <span className={cls} style={{ ...sm, color: 'var(--green)' }}>{t.balanceCredit} <strong>₪{Math.abs(balance).toFixed(2)}</strong></span>;
+}
+
+/* ─────────────────────────────────────────────
+   KebabMenu — reusable ⋯ dropdown (fixed positioning)
+───────────────────────────────────────────── */
+function KebabMenu({ items, small, isRtl }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const btnRef = useRef(null);
+  const dropW = small ? 160 : 200;
+
+  const openMenu = (e) => {
+    e.stopPropagation();
+    if (open) { setOpen(false); return; }
+    const r = btnRef.current.getBoundingClientRect();
+    // position below the button; flip left edge so it doesn't go off-screen
+    let left = isRtl ? r.left : r.right - dropW;
+    if (left < 8) left = 8;
+    if (left + dropW > window.innerWidth - 8) left = window.innerWidth - dropW - 8;
+    setCoords({ top: r.bottom + 6, left });
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e) => {
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('touchstart', close);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('touchstart', close); };
+  }, [open]);
+
+  // Close on scroll so dropdown doesn't float detached
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, true);
+    return () => window.removeEventListener('scroll', close, true);
+  }, [open]);
+
+  const dropdown = open ? (
+    <div className="dropdown" style={{ top: coords.top, left: coords.left, minWidth: dropW }}>
+      {items.map((item, i) => (
+        <button key={i} className={`dropdown-item${item.danger ? ' danger' : ''}`}
+          onClick={(e) => { e.stopPropagation(); setOpen(false); item.onClick(); }}>
+          <span style={{ display:'flex', alignItems:'center', fontSize: typeof item.icon === 'string' ? 15 : 14 }}>{item.icon}</span>
+          {item.label}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div className="kebab-wrap">
+      <button ref={btnRef} className={`kebab-btn${open ? ' open' : ''}`} onClick={openMenu}>⋯</button>
+      {ReactDOM.createPortal(dropdown, document.body)}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Entry Row  (⋯ menu → edit / delete)
+───────────────────────────────────────────── */
+function EntryRow({ entry, t, lang, isRtl, onDelete, onEdit }) {
+  const dt = new Date(entry.date + 'T00:00:00');
+  const monthShort = dt.toLocaleString(lang === 'he' ? 'he-IL' : 'en', { month: 'short' });
+
+  return (
+    <div className="entry-row">
+      <div className="entry-row-inner">
+        {/* Date badge */}
+        <div style={{ minWidth: 44, textAlign: 'center', background: 'rgba(255,255,255,0.07)', borderRadius: 11, padding: '6px 3px', flexShrink: 0 }}>
+          <div style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{monthShort}</div>
+          <div style={{ fontSize: 19, fontFamily: 'var(--font-serif)', lineHeight: 1.1 }}>{dt.getDate()}</div>
+        </div>
+        {/* Info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', marginBottom: 3 }}>
+            {entry.hours > 0            && <span className="pill pill-shift">{t.typeShift}</span>}
+            {entry.type === 'payment'   && <span className="pill pill-payment">{t.typePayment}</span>}
+            {entry.type === 'prepaid'   && <span className="pill pill-prepaid">{t.typePrepaid}</span>}
+            {entry.bonus > 0            && <span className="pill pill-bonus">+₪{entry.bonus} {t.typeBonus}</span>}
+            {entry.note && <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 100 }}>{entry.note}</span>}
+          </div>
+          {entry.hours > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+              <Clock size={10} />{entry.start}–{entry.end} · {entry.hours} {t.hours}
+              {entry.crossesMidnight && <span style={{ color: 'var(--amber)' }}>⚠</span>}
+            </div>
+          )}
+          {entry.type === 'prepaid' && <div style={{ fontSize: 10, color: 'var(--amber)' }}>{t.prepaidNote}</div>}
+        </div>
+        {/* Amounts */}
+        <div style={{ textAlign: 'end', flexShrink: 0, marginInlineEnd: 4 }}>
+          {entry.earned > 0 && <div style={{ color: 'var(--red)',   fontFamily: 'var(--font-serif)', fontSize: 14 }}>+₪{entry.earned.toFixed(2)}</div>}
+          {entry.paid   > 0 && <div style={{ color: 'var(--green)', fontFamily: 'var(--font-serif)', fontSize: 14 }}>−₪{entry.paid.toFixed(2)}</div>}
+        </div>
+        {/* ⋯ menu */}
+        <KebabMenu small isRtl={isRtl} items={[
+          { icon: <Edit3 size={13}/>, label: t.editEntry, onClick: () => onEdit(entry) },
+          { icon: <Trash2 size={13}/>, label: t.yes, onClick: () => onDelete(entry.id), danger: true },
+        ]} />
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Entry Form  (Add & Edit)
+───────────────────────────────────────────── */
+function EntryForm({ t, sitter, initial, onSave, onClose }) {
+  const isEdit = !!initial;
+  const [tab,     setTab]     = useState(initial?.type || 'shift');
+  const [date,    setDate]    = useState(initial?.date || todayStr());
+  const [start,   setStart]   = useState(initial?.start  || '');
+  const [end,     setEnd]     = useState(initial?.end    || '');
+  const [paid,    setPaid]    = useState(initial?.type !== 'prepaid' && initial?.paid > 0 ? String(initial.paid) : '');
+  const [bonus,   setBonus]   = useState(initial?.bonus  > 0 ? String(initial.bonus)  : '');
+  const [prepaid, setPrepaid] = useState(initial?.type === 'prepaid' ? String(initial.paid) : '');
+  const [note,    setNote]    = useState(initial?.note   || '');
+  const [error,   setError]   = useState('');
+  const [shaking, setShaking] = useState(false);
+
+  const triggerError = (msg) => {
+    setError(msg);
+    setShaking(true);
+    setTimeout(() => setShaking(false), 500);
+  };
+
+  const hours = calcHours(start, end);
+  const crossesMidnight = !!(start && end && hours > 0 && end < start);
+
+  const handleSave = () => {
+    if (tab === 'shift'   && (!start || !end)) { triggerError(t.validationTimes);  return; }
+    if (tab === 'payment' && !paid)            { triggerError(t.validationAmount); return; }
+    if (tab === 'prepaid' && !prepaid)         { triggerError(t.validationAmount); return; }
+    setError('');
+    const h         = tab === 'shift' ? hours : 0;
+    const earnedAmt = tab === 'shift' ? h * sitter.rate + (parseFloat(bonus) || 0) : 0;
+    const paidAmt   = tab === 'prepaid' ? parseFloat(prepaid) : (parseFloat(paid) || 0);
+    onSave({ id: initial?.id || Date.now().toString(), date,
+      start: tab === 'shift' ? start : '', end: tab === 'shift' ? end : '',
+      hours: h, earned: earnedAmt, paid: paidAmt, bonus: parseFloat(bonus) || 0, note,
+      type: tab, crossesMidnight, timestamp: initial?.timestamp || Date.now() });
+  };
+
+  const moneyField = (label, color, val, setter) => (
+    <div>
+      <div className="section-label" style={{ color }}>{label}</div>
+      <div style={{ position: 'relative' }}>
+        <span style={{ position: 'absolute', insetInlineStart: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }}>₪</span>
+        <input className="input-glass" type="number" value={val} onChange={e => setter(e.target.value)} placeholder="0" min="0" style={{ paddingInlineStart: 26 }} />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-sheet">
+        <div className="drag-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, margin: 0 }}>{isEdit ? t.editEntry : t.addEntry}</h2>
+          <button onClick={onClose} className="btn-icon"><X size={16}/></button>
+        </div>
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
+          {[['shift', t.entryTypeShift], ['payment', t.entryTypePayment], ['prepaid', t.entryTypePrepaid]].map(([id, label]) => (
+            <button key={id} className={`tab-btn ${tab === id ? 'active' : 'inactive'}`} onClick={() => setTab(id)}>{label}</button>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+          {/* Date */}
+          <div>
+            <div className="section-label">{t.formDate}</div>
+            <input className="input-glass" type="date" value={date} onChange={e => setDate(e.target.value)} />
+          </div>
+
+          {/* Time range */}
+          {tab === 'shift' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: 'rgba(255,255,255,0.04)', padding: 13, borderRadius: 14, border: '1px solid rgba(255,255,255,0.08)' }}>
+              {[['start', start, setStart, t.formStart], ['end', end, setEnd, t.formEnd]].map(([, val, setter, label]) => (
+                <div key={label}>
+                  <div className="section-label">{label}</div>
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <input className="input-glass" type="time" value={val} onChange={e => setter(e.target.value)} style={{ flex: 1, padding: '9px 9px' }} />
+                    <button className="btn-ghost" onClick={() => setter(nowStr())} style={{ padding: '8px 8px', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap' }}>{t.btnNow}</button>
+                  </div>
+                </div>
+              ))}
+              {start && end && hours > 0 && (
+                <div style={{ gridColumn: '1/-1', fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>
+                  = {hours} {t.hours} · ₪{(hours * sitter.rate).toFixed(2)}
+                  {crossesMidnight && <span style={{ color: 'var(--amber)', marginInlineStart: 8 }}>{t.crossesMidnight}</span>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'shift' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {moneyField(t.formPaid,  '#6ee7b7', paid,  setPaid)}
+              {moneyField(t.formBonus, '#f9a8d4', bonus, setBonus)}
+            </div>
+          )}
+          {tab === 'payment' && moneyField(t.formPaid, '#6ee7b7', paid, setPaid)}
+          {tab === 'prepaid' && (
+            <div>
+              {moneyField(t.formPrepaid, '#fcd34d', prepaid, setPrepaid)}
+              <div style={{ fontSize: 11, color: 'var(--amber)', marginTop: 4 }}>{t.prepaidNote}</div>
+            </div>
+          )}
+
+          {/* Note */}
+          <div>
+            <div className="section-label">{t.formNote}</div>
+            <input className="input-glass" type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="..." />
+          </div>
+
+          {error && (
+            <div className="error-msg">
+              <span>⚠</span> {error}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            <button className="btn-ghost"   onClick={onClose}    style={{ flex: 1, padding: '13px 0' }}>{t.btnCancel}</button>
+            <button className="btn-primary" onClick={handleSave} style={{ flex: 2, padding: '13px 0', fontSize: 15 }}>{t.btnSave}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Add Sitter Modal
+───────────────────────────────────────────── */
+function AddSitterModal({ t, onSave, onClose }) {
+  const [name, setName] = useState('');
+  const [rate, setRate] = useState('');
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-sheet">
+        <div className="drag-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 23, margin: 0 }}>{t.modalNewNanny}</h2>
+          <button onClick={onClose} className="btn-icon"><X size={16}/></button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+          <div>
+            <div className="section-label">{t.formName}</div>
+            <input className="input-glass" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Sarah..." autoFocus />
+          </div>
+          <div>
+            <div className="section-label">{t.formRate}</div>
+            <input className="input-glass" type="number" value={rate} onChange={e => setRate(e.target.value)} placeholder="50" min="0" step="0.5" />
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            <button className="btn-ghost"   onClick={onClose} style={{ flex: 1, padding: '13px 0' }}>{t.btnCancel}</button>
+            <button className="btn-primary" onClick={() => { if (name && rate) onSave(name, parseFloat(rate)); }} style={{ flex: 2, padding: '13px 0', fontSize: 15 }}>{t.btnSave}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Sitter Card
+───────────────────────────────────────────── */
+function SitterCard({ sitter, t, lang, onClick, isRtl, onShare, onExport, onEdit, onDelete }) {
+  const totalHours = sitter.entries.reduce((a, e) => a + e.hours, 0);
+  const totalPaid  = sitter.entries.reduce((a, e) => a + e.paid,  0);
+  return (
+    <div className="glass sitter-card" onClick={onClick} style={{ borderRadius: 24, padding: 20, position: 'relative', overflow: 'visible', isolation: 'isolate' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, borderRadius: '24px 24px 0 0', background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)', pointerEvents: 'none' }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 13 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 21, marginBottom: 2 }}>{sitter.name}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>₪{sitter.rate}{t.perHour} · {sitter.entries.length} {t.entriesCount}</div>
+        </div>
+        {/* ⋯ kebab — stops propagation so card click doesn't fire */}
+        <div onClick={e => e.stopPropagation()}>
+          <KebabMenu isRtl={isRtl} items={[
+            { icon: '📤', label: t.menuShare,  onClick: onShare },
+            { icon: <Download size={14}/>, label: t.menuExport, onClick: onExport },
+            { icon: <Edit3 size={14}/>, label: t.menuEdit, onClick: onEdit },
+            { icon: <Trash2 size={14}/>, label: t.menuDelete, onClick: onDelete, danger: true },
+          ]} />
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 13 }}>
+        {[
+          { label: t.summaryTotalWorked, val: totalHours.toFixed(1), color: 'var(--accent)' },
+          { label: t.summaryTotalPaid,   val: `₪${totalPaid.toFixed(0)}`, color: 'var(--green)' },
+        ].map(({ label, val, color }) => (
+          <div key={label} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '9px 12px' }}>
+            <div className="section-label">{label}</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 17, color }}>{val}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 11, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <BalanceDisplay balance={sitter.balance} t={t} />
+        <div style={{ color: 'var(--text-dim)' }}>{isRtl ? <ChevronLeft size={17}/> : <ChevronRight size={17}/>}</div>
+      </div>
+    </div>
+  );
+}
+
+
+
+/* ─────────────────────────────────────────────
+   Edit Sitter Modal
+───────────────────────────────────────────── */
+function EditSitterModal({ t, sitter, onSave, onClose }) {
+  const [name, setName] = useState(sitter.name);
+  const [rate, setRate] = useState(String(sitter.rate));
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-sheet">
+        <div className="drag-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 23, margin: 0 }}>{t.editSitterTitle}</h2>
+          <button onClick={onClose} className="btn-icon"><X size={16}/></button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+          <div>
+            <div className="section-label">{t.formName}</div>
+            <input className="input-glass" type="text" value={name} onChange={e => setName(e.target.value)} />
+          </div>
+          <div>
+            <div className="section-label">{t.formRate}</div>
+            <input className="input-glass" type="number" value={rate} onChange={e => setRate(e.target.value)} min="0" step="0.5" />
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            <button className="btn-ghost" onClick={onClose} style={{ flex: 1, padding: '13px 0' }}>{t.btnCancel}</button>
+            <button className="btn-primary" onClick={() => { if (name && rate) onSave(name, parseFloat(rate)); }} style={{ flex: 2, padding: '13px 0', fontSize: 15 }}>{t.btnSave}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Main App
+───────────────────────────────────────────── */
+function App() {
+  const [lang, setLang]             = useStickyState('he', 'nl_lang');
+  const [sitters, setSitters]       = useStickyState([], 'nl_sitters');
+  const [activeView, setActiveView] = useState('list');
+  const [activeSitterId, setActiveSitterId] = useState(null);
+  const [showAddSitter, setShowAddSitter]   = useState(false);
+  const [showAddEntry,  setShowAddEntry]    = useState(false);
+  const [editingEntry,  setEditingEntry]    = useState(null);
+  const [toast, setToast] = useState('');
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+  const [editingSitter, setEditingSitter] = useState(null);
+
+  const t      = T[lang];
+  const isRtl  = lang === 'he';
+
+  useEffect(() => {
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+    let el = document.getElementById('nl-styles');
+    if (!el) { el = document.createElement('style'); el.id = 'nl-styles'; document.head.appendChild(el); }
+    el.textContent = css;
+  }, [isRtl]);
+
+  const activeSitter = useMemo(() => sitters.find(s => s.id === activeSitterId), [sitters, activeSitterId]);
+
+  const recalc    = es => es.reduce((a, e) => a + (e.earned - e.paid), 0);
+  const sortedArr = es => [...es].sort((a, b) => new Date(b.date) - new Date(a.date) || b.timestamp - a.timestamp);
+
+  const handleAddSitter = (name, rate) => {
+    setSitters(prev => [...prev, { id: Date.now().toString(), name, rate, entries: [], balance: 0 }]);
+    setShowAddSitter(false);
+  };
+
+  const handleSaveEntry = (entry) => {
+    setSitters(prev => prev.map(s => {
+      if (s.id !== activeSitterId) return s;
+      const exists = s.entries.some(e => e.id === entry.id);
+      const entries = sortedArr(exists ? s.entries.map(e => e.id === entry.id ? entry : e) : [entry, ...s.entries]);
+      return { ...s, entries, balance: recalc(entries) };
+    }));
+    setShowAddEntry(false);
+    setEditingEntry(null);
+  };
+
+  const handleDeleteEntry = (id) => {
+    setSitters(prev => prev.map(s => {
+      if (s.id !== activeSitterId) return s;
+      const entries = s.entries.filter(e => e.id !== id);
+      return { ...s, entries, balance: recalc(entries) };
+    }));
+  };
+
+  const handleDeleteSitter = (id) => { setSitters(prev => prev.filter(s => s.id !== id)); setActiveView('list'); };
+
+  const handleEditSitter = (name, rate) => {
+    setSitters(prev => prev.map(s => s.id === editingSitter.id ? { ...s, name, rate } : s));
+    setEditingSitter(null);
+  };
+
+  const months     = useMemo(() => activeSitter ? groupByMonth(activeSitter.entries, lang) : [], [activeSitter, lang]);
+  const totalPaid  = activeSitter?.entries.reduce((a, e) => a + e.paid,  0) ?? 0;
+  const totalHours = activeSitter?.entries.reduce((a, e) => a + e.hours, 0) ?? 0;
+
+  return (
+    <div style={{ minHeight: '100vh', fontFamily: 'var(--font-sans)', position: 'relative' }}>
+      <div className="orbs"><div className="orb orb1"/><div className="orb orb2"/><div className="orb orb3"/></div>
+
+      {/* ── Header ── */}
+      <header style={{ position: 'sticky', top: 0, zIndex: 10, background: 'rgba(15,12,26,0.65)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        {activeView === 'detail' ? (
+          <button onClick={() => setActiveView('list')} className="btn-back">
+            {isRtl ? <ArrowRight size={15}/> : <ArrowLeft size={15}/>} {t.back}
+          </button>
+        ) : (
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontStyle: 'italic', background: 'linear-gradient(135deg,#a78bfa,#f472b6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            {t.appTitle}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {activeView === 'detail' && activeSitter && (
+            <KebabMenu isRtl={isRtl} items={[
+              { icon: '📤', label: t.menuShare,  onClick: () => doShare(activeSitter, t, lang, showToast) },
+              { icon: <Download size={14}/>, label: t.menuExport, onClick: () => doExportCSV(activeSitter, t) },
+              { icon: <Edit3 size={14}/>, label: t.menuEdit, onClick: () => setEditingSitter(activeSitter) },
+              { icon: <Trash2 size={14}/>, label: t.menuDelete, onClick: () => handleDeleteSitter(activeSitterId), danger: true },
+            ]} />
+          )}
+          <button onClick={() => setLang(l => l === 'en' ? 'he' : 'en')} className="btn-icon"><Languages size={15}/></button>
+        </div>
+      </header>
+
+      <main style={{ maxWidth: 700, margin: '0 auto', padding: '20px 13px 110px', position: 'relative', zIndex: 1 }}>
+
+        {/* ── LIST VIEW ── */}
+        {activeView === 'list' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22, paddingBottom: 13, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 13, fontStyle: 'italic', color: 'var(--text-muted)' }}>{t.tagline}</div>
+              <button className="btn-primary" onClick={() => setShowAddSitter(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 15px', fontSize: 13 }}>
+                <Plus size={14}/> {t.addBabysitter}
+              </button>
+            </div>
+            {sitters.length === 0 ? (
+              <div className="fade-in" style={{ textAlign: 'center', padding: '70px 20px', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: 28, background: 'rgba(255,255,255,0.02)' }}>
+                <div style={{ fontSize: 42, marginBottom: 10 }}>👶</div>
+                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, marginBottom: 6 }}>{t.noBabysitters}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t.getStarted}</div>
+              </div>
+            ) : (
+              <div className="stagger" style={{ display: 'grid', gap: 13, gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}>
+                {sitters.map(s => (
+                  <SitterCard key={s.id} sitter={s} t={t} lang={lang} isRtl={isRtl}
+                    onClick={() => { setActiveSitterId(s.id); setActiveView('detail'); }}
+                    onShare={() => doShare(s, t, lang, showToast)}
+                    onExport={() => doExportCSV(s, t)}
+                    onEdit={() => setEditingSitter(s)}
+                    onDelete={() => handleDeleteSitter(s.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── DETAIL VIEW ── */}
+        {activeView === 'detail' && activeSitter && (
+          <div className="fade-in">
+            {/* Hero */}
+            <div className="glass" style={{ borderRadius: 24, padding: 'clamp(13px,4vw,20px)', marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent)', pointerEvents: 'none' }} />
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(21px,6vw,32px)', marginBottom: 2, lineHeight: 1.1 }}>{activeSitter.name}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>₪{activeSitter.rate}{t.perHour}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7 }}>
+                {[
+                  { label: t.currentBalance,    value: <BalanceDisplay balance={activeSitter.balance} t={t} large /> },
+                  { label: t.summaryTotalWorked, value: <span className="stat-value" style={{ color: 'var(--accent)' }}>{totalHours.toFixed(1)}</span> },
+                  { label: t.summaryTotalPaid,   value: <span className="stat-value" style={{ color: 'var(--green)' }}>₪{totalPaid.toFixed(0)}</span> },
+                ].map((s, i) => (
+                  <div key={i} className="stat-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div className="section-label">{s.label}</div>
+                    <div>{s.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Ledger */}
+            <div style={{ marginBottom: 4, paddingInlineStart: 3, fontFamily: 'var(--font-serif)', fontSize: 16, fontStyle: 'italic', color: 'var(--text-muted)' }}>{t.shiftHistory}</div>
+            {activeSitter.entries.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '38px 20px', color: 'var(--text-muted)', fontSize: 13 }}>{t.noEntries}</div>
+            ) : (
+              <div>
+                {months.map(group => (
+                  <div key={group.label}>
+                    <div className="month-divider">{group.label}</div>
+                    <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
+                      {group.entries.map(entry => (
+                        <EntryRow key={entry.id} entry={entry} t={t} lang={lang} isRtl={isRtl}
+                          onDelete={handleDeleteEntry} onEdit={e => setEditingEntry(e)} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* FAB */}
+            <button className="btn-primary" onClick={() => setShowAddEntry(true)} style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 7, padding: '14px 24px', fontSize: 15, zIndex: 40, whiteSpace: 'nowrap' }}>
+              <Plus size={17}/> {t.addEntry}
+            </button>
+          </div>
+        )}
+      </main>
+
+      {/* ── Modals ── */}
+      {showAddSitter && <AddSitterModal t={t} onSave={handleAddSitter} onClose={() => setShowAddSitter(false)} />}
+      {toast && <div className="toast">{toast}</div>}
+      {editingSitter && <EditSitterModal t={t} sitter={editingSitter} onSave={handleEditSitter} onClose={() => setEditingSitter(null)} />}
+      {(showAddEntry || editingEntry) && activeSitter && (
+        <EntryForm t={t} sitter={activeSitter} initial={editingEntry || null}
+          onSave={handleSaveEntry} onClose={() => { setShowAddEntry(false); setEditingEntry(null); }} />
+      )}
+    </div>
+  );
+}
+
+    // Mount
+    const root = ReactDOM_pkg.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>
