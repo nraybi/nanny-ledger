@@ -30,7 +30,6 @@
 
   <script type="text/babel" data-presets="react">
     const { useState, useEffect, useMemo, useRef } = React;
-    const ReactDOM_pkg = ReactDOM;
 
     // Lucide icon shim — wraps lucide UMD icons as React components
     const makeIcon = (name) => ({ size = 16, ...props } = {}) => {
@@ -38,7 +37,8 @@
       useEffect(() => {
         if (ref.current && window.lucide) {
           ref.current.innerHTML = '';
-          const svg = window.lucide.createElement(window.lucide[name] || window.lucide['Circle']);
+          const icons = window.lucide.icons || window.lucide;
+          const svg = window.lucide.createElement(icons[name] || icons['Circle']);
           svg.setAttribute('width', size);
           svg.setAttribute('height', size);
           svg.setAttribute('stroke', 'currentColor');
@@ -51,6 +51,7 @@
       }, [size]);
       return React.createElement('span', { ref, style: { display: 'inline-flex', alignItems: 'center' }, ...props });
     };
+    
     const ChevronLeft  = makeIcon('ChevronLeft');
     const ChevronRight = makeIcon('ChevronRight');
     const Plus         = makeIcon('Plus');
@@ -62,11 +63,6 @@
     const Trash2       = makeIcon('Trash2');
     const Edit3        = makeIcon('Pencil');
     const Download     = makeIcon('Download');
-
-    // ReactDOM.createPortal shim
-    const ReactDOM = {
-      createPortal: (children, container) => ReactDOM_pkg.createPortal(children, container)
-    };
 
 /* ─────────────────────────────────────────────
    i18n
@@ -893,8 +889,8 @@ function App() {
   );
 }
 
-    // Mount
-    const root = ReactDOM_pkg.createRoot(document.getElementById('root'));
+    // Mount using React 18 createRoot
+    const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(React.createElement(App));
   </script>
 </body>
