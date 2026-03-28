@@ -9,14 +9,9 @@
   <meta name="theme-color" content="#0f0c1a" />
   <title>פנקס בייביסיטר</title>
 
-  <!-- React 18 -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-
-  <!-- Lucide Icons (UMD) -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-
-  <!-- Babel standalone (transpiles JSX in-browser) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
@@ -31,27 +26,31 @@
   <script type="text/babel" data-presets="react">
     const { useState, useEffect, useMemo, useRef } = React;
 
-    // Lucide icon shim — wraps lucide UMD icons as React components
+    // Lucide icon shim — bridges UMD bundle to React components
+    // The latest Lucide UMD stores icon data in window.lucide.icons
     const makeIcon = (name) => ({ size = 16, ...props } = {}) => {
       const ref = useRef(null);
       useEffect(() => {
-        if (ref.current && window.lucide) {
-          ref.current.innerHTML = '';
-          const icons = window.lucide.icons || window.lucide;
-          const svg = window.lucide.createElement(icons[name] || icons['Circle']);
-          svg.setAttribute('width', size);
-          svg.setAttribute('height', size);
-          svg.setAttribute('stroke', 'currentColor');
-          svg.setAttribute('stroke-width', '2');
-          svg.setAttribute('fill', 'none');
-          svg.setAttribute('stroke-linecap', 'round');
-          svg.setAttribute('stroke-linejoin', 'round');
-          ref.current.appendChild(svg);
-        }
-      }, [size]);
-      return React.createElement('span', { ref, style: { display: 'inline-flex', alignItems: 'center' }, ...props });
+        if (!ref.current || !window.lucide) return;
+        ref.current.innerHTML = '';
+        const icons = window.lucide.icons || window.lucide;
+        const iconData = icons[name] || icons['Circle'];
+        const svg = window.lucide.createElement(iconData);
+        svg.setAttribute('width', size);
+        svg.setAttribute('height', size);
+        svg.setAttribute('stroke', 'currentColor');
+        svg.setAttribute('stroke-width', '2');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('stroke-linecap', 'round');
+        svg.setAttribute('stroke-linejoin', 'round');
+        ref.current.appendChild(svg);
+      }, [size, name]);
+      return React.createElement('span', {
+        ref,
+        style: { display: 'inline-flex', alignItems: 'center', flexShrink: 0 }
+      });
     };
-    
+
     const ChevronLeft  = makeIcon('ChevronLeft');
     const ChevronRight = makeIcon('ChevronRight');
     const Plus         = makeIcon('Plus');
@@ -889,7 +888,7 @@ function App() {
   );
 }
 
-    // Mount using React 18 createRoot
+    // Mount — ReactDOM is the global from the CDN script tag, already has createPortal
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(React.createElement(App));
   </script>
