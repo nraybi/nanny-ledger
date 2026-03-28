@@ -16,13 +16,12 @@
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body, #root { height: 100%; }
+    html, body, #app-root { height: 100%; }
     body { background: #0f0c1a; }
   </style>
 </head>
 <body>
-  <div id="root"></div>
-
+  <div id="app-root"></div>
   <script type="text/babel" data-presets="react">
     const { useState, useEffect, useMemo, useRef } = React;
 
@@ -409,7 +408,7 @@ function KebabMenu({ items, small, isRtl }) {
   return (
     <div className="kebab-wrap">
       <button ref={btnRef} className={`kebab-btn${open ? ' open' : ''}`} onClick={openMenu}>⋯</button>
-      {ReactDOM.createPortal(dropdown, document.body)}
+      {open && ReactDOM.createPortal(dropdown, document.getElementById('dropdown-portal'))}
     </div>
   );
 }
@@ -888,9 +887,9 @@ function App() {
   );
 }
 
-    // Mount — ReactDOM is the global from the CDN script tag, already has createPortal
-    const root = ReactDOM.createRoot(document.getElementById('root'));
+    const root = ReactDOM.createRoot(document.getElementById('app-root'));
     root.render(React.createElement(App));
   </script>
+  <div id="dropdown-portal"></div>
 </body>
 </html>
