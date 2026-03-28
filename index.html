@@ -16,17 +16,16 @@
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body, #app-root { height: 100%; }
+    html, body, #root { height: 100%; }
     body { background: #0f0c1a; }
   </style>
 </head>
 <body>
-  <div id="app-root"></div>
+  <div id="root"></div>
+
   <script type="text/babel" data-presets="react">
     const { useState, useEffect, useMemo, useRef } = React;
 
-    // Lucide icon shim — bridges UMD bundle to React components
-    // The latest Lucide UMD stores icon data in window.lucide.icons
     const makeIcon = (name) => ({ size = 16, ...props } = {}) => {
       const ref = useRef(null);
       useEffect(() => {
@@ -360,13 +359,13 @@ function KebabMenu({ items, small, isRtl }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const btnRef = useRef(null);
+  const dropRef = useRef(null);
   const dropW = small ? 160 : 200;
 
   const openMenu = (e) => {
     e.stopPropagation();
     if (open) { setOpen(false); return; }
     const r = btnRef.current.getBoundingClientRect();
-    // position below the button; flip left edge so it doesn't go off-screen
     let left = isRtl ? r.left : r.right - dropW;
     if (left < 8) left = 8;
     if (left + dropW > window.innerWidth - 8) left = window.innerWidth - dropW - 8;
@@ -377,15 +376,20 @@ function KebabMenu({ items, small, isRtl }) {
   useEffect(() => {
     if (!open) return;
     const close = (e) => {
+      // Ignore clicks inside the dropdown itself — let the item's onClick fire first
+      if (dropRef.current && dropRef.current.contains(e.target)) return;
       if (btnRef.current && btnRef.current.contains(e.target)) return;
       setOpen(false);
     };
+    // Use mousedown/touchstart only for OUTSIDE clicks, not inside the menu
     document.addEventListener('mousedown', close);
     document.addEventListener('touchstart', close);
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('touchstart', close); };
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('touchstart', close);
+    };
   }, [open]);
 
-  // Close on scroll so dropdown doesn't float detached
   useEffect(() => {
     if (!open) return;
     const close = () => setOpen(false);
@@ -394,9 +398,11 @@ function KebabMenu({ items, small, isRtl }) {
   }, [open]);
 
   const dropdown = open ? (
-    <div className="dropdown" style={{ top: coords.top, left: coords.left, minWidth: dropW }}>
+    <div ref={dropRef} className="dropdown" style={{ top: coords.top, left: coords.left, minWidth: dropW }}>
       {items.map((item, i) => (
         <button key={i} className={`dropdown-item${item.danger ? ' danger' : ''}`}
+          onMouseDown={e => e.stopPropagation()}
+          onTouchStart={e => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); setOpen(false); item.onClick(); }}>
           <span style={{ display:'flex', alignItems:'center', fontSize: typeof item.icon === 'string' ? 15 : 14 }}>{item.icon}</span>
           {item.label}
@@ -408,7 +414,7 @@ function KebabMenu({ items, small, isRtl }) {
   return (
     <div className="kebab-wrap">
       <button ref={btnRef} className={`kebab-btn${open ? ' open' : ''}`} onClick={openMenu}>⋯</button>
-      {open && ReactDOM.createPortal(dropdown, document.getElementById('dropdown-portal'))}
+      {ReactDOM.createPortal(dropdown, document.body)}
     </div>
   );
 }
@@ -887,9 +893,8 @@ function App() {
   );
 }
 
-    const root = ReactDOM.createRoot(document.getElementById('app-root'));
+    const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(React.createElement(App));
   </script>
-  <div id="dropdown-portal"></div>
 </body>
 </html>
