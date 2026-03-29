@@ -8,10 +8,18 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#0f0c1a" />
   <title>פנקס בייביסיטר</title>
+  
+  <!-- Link to the manifest file for PWA support -->
+  <link rel="manifest" href="manifest.json" />
 
+  <!-- React 18 -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Lucide Icons (UMD) -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <!-- Babel standalone (transpiles JSX in-browser) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
@@ -26,40 +34,42 @@
   <script type="text/babel" data-presets="react">
     const { useState, useEffect, useMemo, useRef } = React;
 
+    // Lucide icon shim
     const makeIcon = (name) => ({ size = 16, ...props } = {}) => {
       const ref = useRef(null);
       useEffect(() => {
-        if (!ref.current || !window.lucide) return;
-        ref.current.innerHTML = '';
-        const icons = window.lucide.icons || window.lucide;
-        const iconData = icons[name] || icons['Circle'];
-        const svg = window.lucide.createElement(iconData);
-        svg.setAttribute('width', size);
-        svg.setAttribute('height', size);
-        svg.setAttribute('stroke', 'currentColor');
-        svg.setAttribute('stroke-width', '2');
-        svg.setAttribute('fill', 'none');
-        svg.setAttribute('stroke-linecap', 'round');
-        svg.setAttribute('stroke-linejoin', 'round');
-        ref.current.appendChild(svg);
-      }, [size, name]);
-      return React.createElement('span', {
-        ref,
-        style: { display: 'inline-flex', alignItems: 'center', flexShrink: 0 }
-      });
+        if (ref.current && window.lucide) {
+          ref.current.innerHTML = '';
+          const icons = window.lucide.icons || window.lucide;
+          const svg = window.lucide.createElement(icons[name] || icons['Circle']);
+          svg.setAttribute('width', size);
+          svg.setAttribute('height', size);
+          svg.setAttribute('stroke', 'currentColor');
+          svg.setAttribute('stroke-width', '2');
+          svg.setAttribute('fill', 'none');
+          svg.setAttribute('stroke-linecap', 'round');
+          svg.setAttribute('stroke-linejoin', 'round');
+          ref.current.appendChild(svg);
+        }
+      }, [size]);
+      return React.createElement('span', { ref, style: { display: 'inline-flex', alignItems: 'center' }, ...props });
     };
-
-    const ChevronLeft  = makeIcon('ChevronLeft');
-    const ChevronRight = makeIcon('ChevronRight');
-    const Plus         = makeIcon('Plus');
-    const Clock        = makeIcon('Clock');
-    const ArrowRight   = makeIcon('ArrowRight');
-    const ArrowLeft    = makeIcon('ArrowLeft');
-    const X            = makeIcon('X');
-    const Languages    = makeIcon('Languages');
-    const Trash2       = makeIcon('Trash2');
-    const Edit3        = makeIcon('Pencil');
-    const Download     = makeIcon('Download');
+    
+    const ChevronLeft   = makeIcon('ChevronLeft');
+    const ChevronRight  = makeIcon('ChevronRight');
+    const Plus          = makeIcon('Plus');
+    const Clock         = makeIcon('Clock');
+    const ArrowRight    = makeIcon('ArrowRight');
+    const ArrowLeft     = makeIcon('ArrowLeft');
+    const X             = makeIcon('X');
+    const SettingsIcon  = makeIcon('Settings');
+    const Trash2        = makeIcon('Trash2');
+    const Edit3         = makeIcon('Pencil');
+    const Download      = makeIcon('Download');
+    const UploadCloud   = makeIcon('UploadCloud');
+    const Phone         = makeIcon('Phone');
+    const MessageCircle = makeIcon('MessageCircle');
+    const CheckCircle   = makeIcon('CheckCircle');
 
 /* ─────────────────────────────────────────────
    i18n
@@ -73,9 +83,10 @@ const T = {
     shiftHistory: "Ledger History", earned: "Earned", paid: "Paid", hours: "hrs",
     perHour: "/hr",
     formDate: "Date", formStart: "Start Time", formEnd: "End Time",
-    formBonus: "Bonus (₪)", formPaid: "Amount Paid (₪)", formPrepaid: "Prepaid Amount (₪)",
+    formBonus: "Bonus", formPaid: "Amount Paid", formPrepaid: "Prepaid Amount",
     formNote: "Note (Optional)", btnNow: "Now", btnSave: "Save", btnCancel: "Cancel",
-    modalNewNanny: "New Babysitter", formName: "Name", formRate: "Hourly Rate (₪)",
+    modalNewNanny: "New Babysitter", formName: "Name", formRate: "Hourly Rate",
+    formPhone: "Phone (Optional)", placeholderName: "Sarah...",
     summaryTotalWorked: "Hours", summaryTotalPaid: "Paid",
     typeShift: "Shift", typePayment: "Payment", typePrepaid: "Prepaid", typeBonus: "Bonus",
     entryTypeShift: "Shift", entryTypePayment: "Payment Only", entryTypePrepaid: "Prepaid",
@@ -86,17 +97,16 @@ const T = {
     editEntry: "Edit Entry", exportCSV: "Export CSV",
     longPressHint: "Long-press any entry to edit or delete",
     csvFilename: "nanny-ledger", deleteSitter: "Delete",
-    shareSummary: "Share Summary",
-    shareTitle: "Babysitter Summary",
+    shareSummary: "Share Summary", shareTitle: "Babysitter Summary",
     shareShifts: "shifts", shareHours: "hours", sharePaid: "Paid",
-    shareBalance: "Balance", shareThanks: "Thanks!",
-    shareMonth: "Summary for",
-    validationTimes: "Please enter start and end times.",
-    validationAmount: "Please enter an amount.",
-    copied: "Copied to clipboard!",
-    menuShare: "Share Summary", menuExport: "Export CSV",
-    menuEdit: "Edit Babysitter", menuDelete: "Delete Babysitter",
-    editSitterTitle: "Edit Babysitter",
+    shareBalance: "Balance", shareThanks: "Thanks!", shareMonth: "Summary for",
+    validationTimes: "Please enter start and end times.", validationAmount: "Please enter an amount.",
+    copied: "Copied to clipboard!", menuShare: "Share Summary", menuExport: "Export CSV",
+    menuEdit: "Edit Babysitter", menuDelete: "Delete Babysitter", editSitterTitle: "Edit Babysitter",
+    settingsTitle: "Settings", languageLabel: "Language", currencyLabel: "Currency",
+    backupData: "Backup Data", restoreData: "Restore Data", backupDesc: "Save a secure backup file",
+    restoreDesc: "Load from backup file", backupSuccess: "Backup downloaded!", restoreSuccess: "Data restored successfully!",
+    restoreError: "Invalid backup file.", settleBalance: "Settle Balance", settlePrepaid: "Clear Prepaid"
   },
   he: {
     appTitle: "פנקס בייביסיטר", tagline: "מעקב שעות ותשלומים בסטייל.",
@@ -106,9 +116,10 @@ const T = {
     shiftHistory: "היסטוריית פנקס", earned: "הרוויחה", paid: "שולם", hours: "שע׳",
     perHour: "/ש׳",
     formDate: "תאריך", formStart: "שעת התחלה", formEnd: "שעת סיום",
-    formBonus: "בונוס (₪)", formPaid: "סכום ששולם (₪)", formPrepaid: "תשלום מראש (₪)",
+    formBonus: "בונוס", formPaid: "סכום ששולם", formPrepaid: "תשלום מראש",
     formNote: "הערה (אופציונלי)", btnNow: "עכשיו", btnSave: "שמור", btnCancel: "ביטול",
-    modalNewNanny: "בייביסיטר חדש/ה", formName: "שם", formRate: "תעריף שעתי (₪)",
+    modalNewNanny: "בייביסיטר חדש/ה", formName: "שם", formRate: "תעריף שעתי",
+    formPhone: "טלפון (אופציונלי)", placeholderName: "שרה...",
     summaryTotalWorked: "שעות", summaryTotalPaid: "שולם",
     typeShift: "משמרת", typePayment: "תשלום", typePrepaid: "מראש", typeBonus: "בונוס",
     entryTypeShift: "משמרת", entryTypePayment: "תשלום בלבד", entryTypePrepaid: "תשלום מראש",
@@ -119,17 +130,16 @@ const T = {
     editEntry: "ערוך רשומה", exportCSV: "ייצא CSV",
     longPressHint: "לחיצה ארוכה על רשומה לעריכה או מחיקה",
     csvFilename: "pnkas-babysitter", deleteSitter: "מחק",
-    shareSummary: "שתף סיכום",
-    shareTitle: "סיכום בייביסיטר",
+    shareSummary: "שתף סיכום", shareTitle: "סיכום בייביסיטר",
     shareShifts: "משמרות", shareHours: "שעות", sharePaid: "שולם",
-    shareBalance: "יתרה", shareThanks: "תודה!",
-    shareMonth: "סיכום עבור",
-    validationTimes: "נא להזין שעת התחלה וסיום.",
-    validationAmount: "נא להזין סכום.",
-    copied: "הועתק ללוח!",
-    menuShare: "שתף סיכום", menuExport: "ייצא CSV",
-    menuEdit: "ערוך בייביסיטר", menuDelete: "מחק בייביסיטר",
-    editSitterTitle: "ערוך בייביסיטר",
+    shareBalance: "יתרה", shareThanks: "תודה!", shareMonth: "סיכום עבור",
+    validationTimes: "נא להזין שעת התחלה וסיום.", validationAmount: "נא להזין סכום.",
+    copied: "הועתק ללוח!", menuShare: "שתף סיכום", menuExport: "ייצא CSV",
+    menuEdit: "ערוך בייביסיטר", menuDelete: "מחק בייביסיטר", editSitterTitle: "ערוך בייביסיטר",
+    settingsTitle: "הגדרות", languageLabel: "שפה", currencyLabel: "מטבע",
+    backupData: "גיבוי נתונים", restoreData: "שחזור נתונים", backupDesc: "שמירת קובץ גיבוי מאובטח",
+    restoreDesc: "טעינה מקובץ גיבוי", backupSuccess: "הגיבוי הורד בהצלחה!", restoreSuccess: "הנתונים שוחזרו בהצלחה!",
+    restoreError: "קובץ גיבוי לא תקין.", settleBalance: "סגור חוב", settlePrepaid: "אפס תשלום מראש"
   }
 };
 
@@ -166,7 +176,14 @@ const groupByMonth = (entries, lang) => {
   return Object.values(groups);
 };
 
-const doExportCSV = (sitter, t) => {
+const formatWA = (phone) => {
+  if (!phone) return '';
+  let cleaned = phone.replace(/\D/g, '');
+  if (cleaned.startsWith('0') && cleaned.length === 10) cleaned = '972' + cleaned.substring(1);
+  return cleaned;
+};
+
+const doExportCSV = (sitter, t, cur) => {
   const headers = ['Date','Type','Start','End','Hours','Rate','Earned','Bonus','Paid','Balance Effect','Note'];
   const rows = sitter.entries.map(e => [
     e.date, e.type || 'shift', e.start || '', e.end || '',
@@ -186,8 +203,7 @@ const doExportCSV = (sitter, t) => {
   a.click(); URL.revokeObjectURL(url);
 };
 
-
-const buildShareText = (sitter, t, lang) => {
+const buildShareText = (sitter, t, lang, cur) => {
   const months = groupByMonth(sitter.entries, lang);
   const lines = [];
   months.forEach(group => {
@@ -196,41 +212,30 @@ const buildShareText = (sitter, t, lang) => {
     const paid     = group.entries.reduce((a, e) => a + e.paid,  0);
     lines.push(`📅 ${t.shareMonth} ${group.label}:`);
     lines.push(`   ${shifts} ${t.shareShifts} · ${hours.toFixed(1)} ${t.shareHours}`);
-    lines.push(`   ${t.sharePaid}: ₪${paid.toFixed(0)}`);
+    lines.push(`   ${t.sharePaid}: ${cur}${paid.toFixed(0)}`);
   });
   const bal = sitter.balance;
   const balStr = bal === 0
     ? t.balanceSettled
     : bal > 0
-      ? `${t.balanceOwe} ₪${bal.toFixed(2)}`
-      : `${t.balanceCredit} ₪${Math.abs(bal).toFixed(2)}`;
-  const text = [
-    `👶 ${t.shareTitle} — ${sitter.name}`,
-    `💰 ${t.shareBalance}: ${balStr}`,
-    '',
-    ...lines,
-    '',
-    t.shareThanks,
-  ].join('\n');
+      ? `${t.balanceOwe} ${cur}${bal.toFixed(2)}`
+      : `${t.balanceCredit} ${cur}${Math.abs(bal).toFixed(2)}`;
+  const text = [`👶 ${t.shareTitle} — ${sitter.name}`, `💰 ${t.shareBalance}: ${balStr}`, '', ...lines, '', t.shareThanks].join('\n');
   return text;
 };
 
-const doShare = async (sitter, t, lang, onToast) => {
-  const text = buildShareText(sitter, t, lang);
-  if (navigator.share) {
-    try { await navigator.share({ title: t.shareTitle, text }); return; } catch {}
-  }
-  // Fallback: copy + WhatsApp link
+const doShare = async (sitter, t, lang, cur, onToast) => {
+  const text = buildShareText(sitter, t, lang, cur);
+  if (navigator.share) { try { await navigator.share({ title: t.shareTitle, text }); return; } catch {} }
   try { await navigator.clipboard.writeText(text); onToast(t.copied); } catch {}
-  const encoded = encodeURIComponent(text);
-  window.open(`https://wa.me/?text=${encoded}`, '_blank');
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 };
 
 /* ─────────────────────────────────────────────
    CSS
 ───────────────────────────────────────────── */
 const css = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap');
   *,*::before,*::after{box-sizing:border-box;}
   :root{
     --bg:#0f0c1a; --glass:rgba(255,255,255,0.07); --glass-border:rgba(255,255,255,0.14);
@@ -240,10 +245,9 @@ const css = `
     --font-serif:'DM Serif Display',Georgia,serif; --font-sans:'DM Sans',system-ui,sans-serif;
     --radius:20px; --radius-sm:12px; --shadow:0 8px 32px rgba(0,0,0,0.4);
   }
-  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh;overflow-x:hidden;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;}
   ::selection{background:rgba(167,139,250,0.35);}
-  input[type=date]::-webkit-calendar-picker-indicator,
-  input[type=time]::-webkit-calendar-picker-indicator{filter:invert(0.8);cursor:pointer;}
+  input[type=date]::-webkit-calendar-picker-indicator, input[type=time]::-webkit-calendar-picker-indicator{filter:invert(0.8);cursor:pointer;}
   input,textarea{color-scheme:dark;}
 
   .orbs{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
@@ -262,18 +266,22 @@ const css = `
   .stagger>*{opacity:0;animation:slideUp 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;}
   .stagger>*:nth-child(1){animation-delay:0ms}.stagger>*:nth-child(2){animation-delay:60ms}
   .stagger>*:nth-child(3){animation-delay:120ms}.stagger>*:nth-child(4){animation-delay:180ms}
-  .stagger>*:nth-child(5){animation-delay:240ms}.stagger>*:nth-child(6){animation-delay:300ms}
-  .stagger>*:nth-child(7){animation-delay:360ms}.stagger>*:nth-child(8){animation-delay:420ms}
 
   .drag-handle{width:40px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:0 auto 20px;}
 
-  .btn-primary{background:linear-gradient(135deg,#7c3aed,#db2777);color:#fff;border:none;cursor:pointer;font-family:var(--font-sans);font-weight:600;border-radius:50px;transition:all 0.2s;box-shadow:0 4px 20px rgba(124,58,237,0.4);}
+  .btn-primary{background:linear-gradient(135deg,#7c3aed,#db2777);color:#fff;border:none;cursor:pointer;font-family:var(--font-sans);font-weight:600;border-radius:50px;transition:all 0.2s;box-shadow:0 4px 20px rgba(124,58,237,0.4);display:flex;align-items:center;justify-content:center;}
   .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 28px rgba(124,58,237,0.55);}
   .btn-primary:active{transform:scale(0.97);}
-  .btn-ghost{background:var(--glass);border:1px solid var(--glass-border);color:var(--text);cursor:pointer;font-family:var(--font-sans);border-radius:50px;transition:all 0.2s;backdrop-filter:blur(12px);}
+  .btn-ghost{background:var(--glass);border:1px solid var(--glass-border);color:var(--text);cursor:pointer;font-family:var(--font-sans);font-weight:500;border-radius:50px;transition:all 0.2s;backdrop-filter:blur(12px);}
   .btn-ghost:hover{background:var(--glass-hover);}
   .btn-icon{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);color:var(--text);border-radius:50%;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
   .btn-icon:hover{background:rgba(255,255,255,0.14);}
+
+  /* Action Buttons for Phone/WA */
+  .btn-action{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;text-decoration:none;transition:all 0.2s;box-shadow:0 4px 12px rgba(0,0,0,0.3);}
+  .btn-action:active{transform:scale(0.92);}
+  .btn-wa{background:linear-gradient(135deg,#25D366,#128C7E);}
+  .btn-phone{background:linear-gradient(135deg,#60a5fa,#2563eb);}
 
   .input-glass{width:100%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:var(--text);border-radius:var(--radius-sm);padding:12px 16px;font-family:var(--font-sans);font-size:15px;outline:none;transition:all 0.2s;}
   .input-glass::placeholder{color:var(--text-dim);}
@@ -288,8 +296,7 @@ const css = `
   .sitter-card:hover{transform:translateY(-4px) scale(1.01);box-shadow:0 16px 48px rgba(0,0,0,0.5);}
   .sitter-card:active{transform:scale(0.98);}
 
-  /* Entry row */
-  .entry-row{position:relative;border-radius:16px;user-select:none;-webkit-user-select:none;touch-action:manipulation;}
+  .entry-row{position:relative;border-radius:16px;user-select:none;-webkit-user-select:none;}
   .entry-row-inner{display:flex;align-items:center;gap:11px;padding:13px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;transition:all 0.15s;}
 
   .pill{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:50px;font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;}
@@ -309,22 +316,17 @@ const css = `
   @media(min-width:640px){.modal-sheet{border-radius:28px;}}
 
   .month-divider{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);padding:14px 0 7px;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:7px;}
-
-  .hint-bar{font-size:11px;color:var(--text-dim);text-align:center;padding:6px 0 10px;display:flex;align-items:center;justify-content:center;gap:5px;}
-  @keyframes shake{0%,100%{transform:translateX(0)}15%{transform:translateX(-6px)}35%{transform:translateX(6px)}55%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
-  .shake{animation:shake 0.45s ease;}
-  .field-error{border-color:var(--red)!important;box-shadow:0 0 0 3px rgba(248,113,113,0.2)!important;}
   .error-msg{font-size:11px;color:var(--red);margin-top:4px;display:flex;align-items:center;gap:4px;}
   @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
   .toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:rgba(18,12,35,0.95);border:1px solid rgba(255,255,255,0.18);backdrop-filter:blur(20px);color:var(--text);padding:10px 20px;border-radius:50px;font-size:13px;font-weight:600;z-index:200;white-space:nowrap;box-shadow:0 4px 24px rgba(0,0,0,0.4);animation:toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1);}
-  /* Back button */
+  
   .btn-back{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.16);color:var(--text);border-radius:50px;padding:8px 14px 8px 10px;cursor:pointer;font-family:var(--font-sans);font-size:13px;font-weight:600;letter-spacing:0.03em;transition:all 0.2s;backdrop-filter:blur(12px);}
   .btn-back:hover{background:rgba(255,255,255,0.13);transform:translateX(-2px);}
   .btn-back:active{transform:scale(0.96);}
   [dir=rtl] .btn-back:hover{transform:translateX(2px);}
-  /* Kebab / dropdown */
+  
   .kebab-wrap{position:relative;z-index:10;}
-  .kebab-btn{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);color:var(--text);border-radius:10px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;font-size:18px;font-weight:700;letter-spacing:0.05em;}
+  .kebab-btn{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);color:var(--text);border-radius:10px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;font-size:18px;font-weight:700;}
   .kebab-btn:hover{background:rgba(255,255,255,0.14);}
   .kebab-btn.open{background:rgba(167,139,250,0.15);border-color:rgba(167,139,250,0.3);}
   @keyframes dropIn{from{opacity:0;transform:scale(0.92) translateY(-6px)}to{opacity:1;transform:scale(1) translateY(0)}}
@@ -334,32 +336,32 @@ const css = `
   .dropdown-item:hover{background:rgba(255,255,255,0.07);}
   .dropdown-item.danger{color:var(--red);}
   .dropdown-item.danger:hover{background:rgba(248,113,113,0.1);}
-  /* Entry row ⋯ button */
-  .entry-menu-btn{flex-shrink:0;background:none;border:none;color:var(--text-dim);cursor:pointer;padding:4px 6px;border-radius:6px;font-size:16px;font-weight:700;line-height:1;transition:all 0.15s;}
-  .entry-menu-btn:hover{color:var(--text);background:rgba(255,255,255,0.08);}
-  /* Sitter card ⋯ sits inside the card */
-  .card-menu-wrap{position:relative;z-index:10;}
+
+  /* Settings row */
+  .setting-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.08);}
+  .setting-row:last-child{border-bottom:none;}
 `;
+
 
 /* ─────────────────────────────────────────────
    Balance Display
 ───────────────────────────────────────────── */
-function BalanceDisplay({ balance, t, large }) {
+function BalanceDisplay({ balance, cur, t, large }) {
   const cls = large ? 'stat-balance' : '';
   const sm = large ? {} : { fontSize: 13, fontWeight: 500 };
   if (balance === 0) return <span className={cls} style={{ ...sm, color: 'var(--text-muted)' }}>{t.balanceSettled}</span>;
-  if (balance > 0) return <span className={cls} style={{ ...sm, color: 'var(--red)' }}>{t.balanceOwe} <strong>₪{balance.toFixed(2)}</strong></span>;
-  return <span className={cls} style={{ ...sm, color: 'var(--green)' }}>{t.balanceCredit} <strong>₪{Math.abs(balance).toFixed(2)}</strong></span>;
+  if (balance > 0) return <span className={cls} style={{ ...sm, color: 'var(--red)' }}>{t.balanceOwe} <strong>{cur}{balance.toFixed(2)}</strong></span>;
+  return <span className={cls} style={{ ...sm, color: 'var(--green)' }}>{t.balanceCredit} <strong>{cur}{Math.abs(balance).toFixed(2)}</strong></span>;
 }
 
 /* ─────────────────────────────────────────────
-   KebabMenu — reusable ⋯ dropdown (fixed positioning)
+   KebabMenu (Dropdown)
 ───────────────────────────────────────────── */
 function KebabMenu({ items, small, isRtl }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const btnRef = useRef(null);
-  const dropRef = useRef(null);
+  const menuRef = useRef(null);
   const dropW = small ? 160 : 200;
 
   const openMenu = (e) => {
@@ -376,18 +378,13 @@ function KebabMenu({ items, small, isRtl }) {
   useEffect(() => {
     if (!open) return;
     const close = (e) => {
-      // Ignore clicks inside the dropdown itself — let the item's onClick fire first
-      if (dropRef.current && dropRef.current.contains(e.target)) return;
       if (btnRef.current && btnRef.current.contains(e.target)) return;
+      if (menuRef.current && menuRef.current.contains(e.target)) return;
       setOpen(false);
     };
-    // Use mousedown/touchstart only for OUTSIDE clicks, not inside the menu
     document.addEventListener('mousedown', close);
     document.addEventListener('touchstart', close);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      document.removeEventListener('touchstart', close);
-    };
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('touchstart', close); };
   }, [open]);
 
   useEffect(() => {
@@ -398,11 +395,9 @@ function KebabMenu({ items, small, isRtl }) {
   }, [open]);
 
   const dropdown = open ? (
-    <div ref={dropRef} className="dropdown" style={{ top: coords.top, left: coords.left, minWidth: dropW }}>
+    <div className="dropdown" ref={menuRef} style={{ top: coords.top, left: coords.left, minWidth: dropW }}>
       {items.map((item, i) => (
         <button key={i} className={`dropdown-item${item.danger ? ' danger' : ''}`}
-          onMouseDown={e => e.stopPropagation()}
-          onTouchStart={e => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); setOpen(false); item.onClick(); }}>
           <span style={{ display:'flex', alignItems:'center', fontSize: typeof item.icon === 'string' ? 15 : 14 }}>{item.icon}</span>
           {item.label}
@@ -420,27 +415,25 @@ function KebabMenu({ items, small, isRtl }) {
 }
 
 /* ─────────────────────────────────────────────
-   Entry Row  (⋯ menu → edit / delete)
+   Entry Row
 ───────────────────────────────────────────── */
-function EntryRow({ entry, t, lang, isRtl, onDelete, onEdit }) {
+function EntryRow({ entry, t, lang, cur, isRtl, onDelete, onEdit }) {
   const dt = new Date(entry.date + 'T00:00:00');
   const monthShort = dt.toLocaleString(lang === 'he' ? 'he-IL' : 'en', { month: 'short' });
 
   return (
     <div className="entry-row">
       <div className="entry-row-inner">
-        {/* Date badge */}
         <div style={{ minWidth: 44, textAlign: 'center', background: 'rgba(255,255,255,0.07)', borderRadius: 11, padding: '6px 3px', flexShrink: 0 }}>
           <div style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{monthShort}</div>
           <div style={{ fontSize: 19, fontFamily: 'var(--font-serif)', lineHeight: 1.1 }}>{dt.getDate()}</div>
         </div>
-        {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', marginBottom: 3 }}>
             {entry.hours > 0            && <span className="pill pill-shift">{t.typeShift}</span>}
             {entry.type === 'payment'   && <span className="pill pill-payment">{t.typePayment}</span>}
             {entry.type === 'prepaid'   && <span className="pill pill-prepaid">{t.typePrepaid}</span>}
-            {entry.bonus > 0            && <span className="pill pill-bonus">+₪{entry.bonus} {t.typeBonus}</span>}
+            {entry.bonus > 0            && <span className="pill pill-bonus">+{cur}{entry.bonus} {t.typeBonus}</span>}
             {entry.note && <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 100 }}>{entry.note}</span>}
           </div>
           {entry.hours > 0 && (
@@ -451,12 +444,10 @@ function EntryRow({ entry, t, lang, isRtl, onDelete, onEdit }) {
           )}
           {entry.type === 'prepaid' && <div style={{ fontSize: 10, color: 'var(--amber)' }}>{t.prepaidNote}</div>}
         </div>
-        {/* Amounts */}
         <div style={{ textAlign: 'end', flexShrink: 0, marginInlineEnd: 4 }}>
-          {entry.earned > 0 && <div style={{ color: 'var(--red)',   fontFamily: 'var(--font-serif)', fontSize: 14 }}>+₪{entry.earned.toFixed(2)}</div>}
-          {entry.paid   > 0 && <div style={{ color: 'var(--green)', fontFamily: 'var(--font-serif)', fontSize: 14 }}>−₪{entry.paid.toFixed(2)}</div>}
+          {entry.earned > 0 && <div style={{ color: 'var(--red)',   fontFamily: 'var(--font-serif)', fontSize: 14 }}>+{cur}{entry.earned.toFixed(2)}</div>}
+          {entry.paid   > 0 && <div style={{ color: 'var(--green)', fontFamily: 'var(--font-serif)', fontSize: 14 }}>−{cur}{entry.paid.toFixed(2)}</div>}
         </div>
-        {/* ⋯ menu */}
         <KebabMenu small isRtl={isRtl} items={[
           { icon: <Edit3 size={13}/>, label: t.editEntry, onClick: () => onEdit(entry) },
           { icon: <Trash2 size={13}/>, label: t.yes, onClick: () => onDelete(entry.id), danger: true },
@@ -467,10 +458,11 @@ function EntryRow({ entry, t, lang, isRtl, onDelete, onEdit }) {
 }
 
 /* ─────────────────────────────────────────────
-   Entry Form  (Add & Edit)
+   Entry Form (Add & Edit)
 ───────────────────────────────────────────── */
-function EntryForm({ t, sitter, initial, onSave, onClose }) {
-  const isEdit = !!initial;
+function EntryForm({ t, cur, sitter, initial, onSave, onClose }) {
+  const isEdit = !!initial && !initial.isSettle;
+  const isSettle = !!initial?.isSettle;
   const [tab,     setTab]     = useState(initial?.type || 'shift');
   const [date,    setDate]    = useState(initial?.date || todayStr());
   const [start,   setStart]   = useState(initial?.start  || '');
@@ -480,14 +472,8 @@ function EntryForm({ t, sitter, initial, onSave, onClose }) {
   const [prepaid, setPrepaid] = useState(initial?.type === 'prepaid' ? String(initial.paid) : '');
   const [note,    setNote]    = useState(initial?.note   || '');
   const [error,   setError]   = useState('');
-  const [shaking, setShaking] = useState(false);
 
-  const triggerError = (msg) => {
-    setError(msg);
-    setShaking(true);
-    setTimeout(() => setShaking(false), 500);
-  };
-
+  const triggerError = (msg) => { setError(msg); setTimeout(() => setError(''), 2500); };
   const hours = calcHours(start, end);
   const crossesMidnight = !!(start && end && hours > 0 && end < start);
 
@@ -499,7 +485,7 @@ function EntryForm({ t, sitter, initial, onSave, onClose }) {
     const h         = tab === 'shift' ? hours : 0;
     const earnedAmt = tab === 'shift' ? h * sitter.rate + (parseFloat(bonus) || 0) : 0;
     const paidAmt   = tab === 'prepaid' ? parseFloat(prepaid) : (parseFloat(paid) || 0);
-    onSave({ id: initial?.id || Date.now().toString(), date,
+    onSave({ id: isEdit ? initial.id : Date.now().toString(), date,
       start: tab === 'shift' ? start : '', end: tab === 'shift' ? end : '',
       hours: h, earned: earnedAmt, paid: paidAmt, bonus: parseFloat(bonus) || 0, note,
       type: tab, crossesMidnight, timestamp: initial?.timestamp || Date.now() });
@@ -507,10 +493,10 @@ function EntryForm({ t, sitter, initial, onSave, onClose }) {
 
   const moneyField = (label, color, val, setter) => (
     <div>
-      <div className="section-label" style={{ color }}>{label}</div>
+      <div className="section-label" style={{ color }}>{label} ({cur})</div>
       <div style={{ position: 'relative' }}>
-        <span style={{ position: 'absolute', insetInlineStart: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }}>₪</span>
-        <input className="input-glass" type="number" value={val} onChange={e => setter(e.target.value)} placeholder="0" min="0" style={{ paddingInlineStart: 26 }} />
+        <span style={{ position: 'absolute', insetInlineStart: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }}>{cur}</span>
+        <input className="input-glass" type="number" value={val} onChange={e => setter(e.target.value)} placeholder="0" min="0" step="any" style={{ paddingInlineStart: 26 }} />
       </div>
     </div>
   );
@@ -520,10 +506,11 @@ function EntryForm({ t, sitter, initial, onSave, onClose }) {
       <div className="modal-sheet">
         <div className="drag-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, margin: 0 }}>{isEdit ? t.editEntry : t.addEntry}</h2>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, margin: 0 }}>
+            {isSettle ? t.settleBalance : (isEdit ? t.editEntry : t.addEntry)}
+          </h2>
           <button onClick={onClose} className="btn-icon"><X size={16}/></button>
         </div>
-        {/* Tabs */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
           {[['shift', t.entryTypeShift], ['payment', t.entryTypePayment], ['prepaid', t.entryTypePrepaid]].map(([id, label]) => (
             <button key={id} className={`tab-btn ${tab === id ? 'active' : 'inactive'}`} onClick={() => setTab(id)}>{label}</button>
@@ -531,13 +518,11 @@ function EntryForm({ t, sitter, initial, onSave, onClose }) {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-          {/* Date */}
           <div>
             <div className="section-label">{t.formDate}</div>
             <input className="input-glass" type="date" value={date} onChange={e => setDate(e.target.value)} />
           </div>
 
-          {/* Time range */}
           {tab === 'shift' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: 'rgba(255,255,255,0.04)', padding: 13, borderRadius: 14, border: '1px solid rgba(255,255,255,0.08)' }}>
               {[['start', start, setStart, t.formStart], ['end', end, setEnd, t.formEnd]].map(([, val, setter, label]) => (
@@ -551,7 +536,7 @@ function EntryForm({ t, sitter, initial, onSave, onClose }) {
               ))}
               {start && end && hours > 0 && (
                 <div style={{ gridColumn: '1/-1', fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>
-                  = {hours} {t.hours} · ₪{(hours * sitter.rate).toFixed(2)}
+                  = {hours} {t.hours} · {cur}{(hours * sitter.rate).toFixed(2)}
                   {crossesMidnight && <span style={{ color: 'var(--amber)', marginInlineStart: 8 }}>{t.crossesMidnight}</span>}
                 </div>
               )}
@@ -572,21 +557,18 @@ function EntryForm({ t, sitter, initial, onSave, onClose }) {
             </div>
           )}
 
-          {/* Note */}
           <div>
             <div className="section-label">{t.formNote}</div>
             <input className="input-glass" type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="..." />
           </div>
 
-          {error && (
-            <div className="error-msg">
-              <span>⚠</span> {error}
-            </div>
-          )}
+          {error && <div className="error-msg"><span>⚠</span> {error}</div>}
 
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
             <button className="btn-ghost"   onClick={onClose}    style={{ flex: 1, padding: '13px 0' }}>{t.btnCancel}</button>
-            <button className="btn-primary" onClick={handleSave} style={{ flex: 2, padding: '13px 0', fontSize: 15 }}>{t.btnSave}</button>
+            <button className="btn-primary" onClick={handleSave} style={{ flex: 2, padding: '13px 0', fontSize: 15 }}>
+              {isSettle ? t.settleBalance : t.btnSave}
+            </button>
           </div>
         </div>
       </div>
@@ -595,31 +577,37 @@ function EntryForm({ t, sitter, initial, onSave, onClose }) {
 }
 
 /* ─────────────────────────────────────────────
-   Add Sitter Modal
+   Add/Edit Sitter Modal
 ───────────────────────────────────────────── */
-function AddSitterModal({ t, onSave, onClose }) {
-  const [name, setName] = useState('');
-  const [rate, setRate] = useState('');
+function SitterModal({ t, cur, initial, onSave, onClose }) {
+  const [name, setName] = useState(initial?.name || '');
+  const [rate, setRate] = useState(initial ? String(initial.rate) : '');
+  const [phone, setPhone] = useState(initial?.phone || '');
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-sheet">
         <div className="drag-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 23, margin: 0 }}>{t.modalNewNanny}</h2>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 23, margin: 0 }}>{initial ? t.editSitterTitle : t.modalNewNanny}</h2>
           <button onClick={onClose} className="btn-icon"><X size={16}/></button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
           <div>
             <div className="section-label">{t.formName}</div>
-            <input className="input-glass" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Sarah..." autoFocus />
+            <input className="input-glass" type="text" value={name} onChange={e => setName(e.target.value)} placeholder={t.placeholderName} autoFocus />
           </div>
           <div>
-            <div className="section-label">{t.formRate}</div>
-            <input className="input-glass" type="number" value={rate} onChange={e => setRate(e.target.value)} placeholder="50" min="0" step="0.5" />
+            <div className="section-label">{t.formRate} ({cur})</div>
+            <input className="input-glass" type="number" value={rate} onChange={e => setRate(e.target.value)} placeholder="50" min="0" step="any" />
+          </div>
+          <div>
+            <div className="section-label">{t.formPhone}</div>
+            <input className="input-glass" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="050-000-0000" dir="ltr" />
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <button className="btn-ghost"   onClick={onClose} style={{ flex: 1, padding: '13px 0' }}>{t.btnCancel}</button>
-            <button className="btn-primary" onClick={() => { if (name && rate) onSave(name, parseFloat(rate)); }} style={{ flex: 2, padding: '13px 0', fontSize: 15 }}>{t.btnSave}</button>
+            <button className="btn-ghost" onClick={onClose} style={{ flex: 1, padding: '13px 0' }}>{t.btnCancel}</button>
+            <button className="btn-primary" onClick={() => { if (name && rate) onSave({ name, rate: parseFloat(rate), phone }); }} style={{ flex: 2, padding: '13px 0', fontSize: 15 }}>{t.btnSave}</button>
           </div>
         </div>
       </div>
@@ -628,9 +616,9 @@ function AddSitterModal({ t, onSave, onClose }) {
 }
 
 /* ─────────────────────────────────────────────
-   Sitter Card
+   Sitter Card (List View)
 ───────────────────────────────────────────── */
-function SitterCard({ sitter, t, lang, onClick, isRtl, onShare, onExport, onEdit, onDelete }) {
+function SitterCard({ sitter, t, cur, lang, onClick, isRtl, onShare, onExport, onEdit, onDelete }) {
   const totalHours = sitter.entries.reduce((a, e) => a + e.hours, 0);
   const totalPaid  = sitter.entries.reduce((a, e) => a + e.paid,  0);
   return (
@@ -639,10 +627,13 @@ function SitterCard({ sitter, t, lang, onClick, isRtl, onShare, onExport, onEdit
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 13 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 21, marginBottom: 2 }}>{sitter.name}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>₪{sitter.rate}{t.perHour} · {sitter.entries.length} {t.entriesCount}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{cur}{sitter.rate}{t.perHour} · {sitter.entries.length} {t.entriesCount}</div>
         </div>
-        {/* ⋯ kebab — stops propagation so card click doesn't fire */}
-        <div onClick={e => e.stopPropagation()}>
+        
+        <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+           {sitter.phone && (
+              <a href={`https://wa.me/${formatWA(sitter.phone)}`} target="_blank" className="btn-action btn-wa"><MessageCircle size={17} /></a>
+           )}
           <KebabMenu isRtl={isRtl} items={[
             { icon: '📤', label: t.menuShare,  onClick: onShare },
             { icon: <Download size={14}/>, label: t.menuExport, onClick: onExport },
@@ -654,7 +645,7 @@ function SitterCard({ sitter, t, lang, onClick, isRtl, onShare, onExport, onEdit
       <div style={{ display: 'flex', gap: 8, marginBottom: 13 }}>
         {[
           { label: t.summaryTotalWorked, val: totalHours.toFixed(1), color: 'var(--accent)' },
-          { label: t.summaryTotalPaid,   val: `₪${totalPaid.toFixed(0)}`, color: 'var(--green)' },
+          { label: t.summaryTotalPaid,   val: `${cur}${totalPaid.toFixed(0)}`, color: 'var(--green)' },
         ].map(({ label, val, color }) => (
           <div key={label} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '9px 12px' }}>
             <div className="section-label">{label}</div>
@@ -663,42 +654,74 @@ function SitterCard({ sitter, t, lang, onClick, isRtl, onShare, onExport, onEdit
         ))}
       </div>
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 11, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <BalanceDisplay balance={sitter.balance} t={t} />
+        <BalanceDisplay balance={sitter.balance} cur={cur} t={t} />
         <div style={{ color: 'var(--text-dim)' }}>{isRtl ? <ChevronLeft size={17}/> : <ChevronRight size={17}/>}</div>
       </div>
     </div>
   );
 }
 
-
-
 /* ─────────────────────────────────────────────
-   Edit Sitter Modal
+   Settings Modal
 ───────────────────────────────────────────── */
-function EditSitterModal({ t, sitter, onSave, onClose }) {
-  const [name, setName] = useState(sitter.name);
-  const [rate, setRate] = useState(String(sitter.rate));
+function SettingsModal({ t, lang, setLang, cur, setCur, onBackup, onRestore, onClose }) {
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => onRestore(ev.target.result);
+    reader.readAsText(file);
+  };
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-sheet">
         <div className="drag-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 23, margin: 0 }}>{t.editSitterTitle}</h2>
+          <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 23, margin: 0 }}>{t.settingsTitle}</h2>
           <button onClick={onClose} className="btn-icon"><X size={16}/></button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+
+        <div className="setting-row">
           <div>
-            <div className="section-label">{t.formName}</div>
-            <input className="input-glass" type="text" value={name} onChange={e => setName(e.target.value)} />
+            <div style={{ fontSize: 16, fontWeight: 500 }}>{t.languageLabel}</div>
           </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className={`tab-btn ${lang === 'en' ? 'active' : 'inactive'}`} onClick={() => setLang('en')}>EN</button>
+            <button className={`tab-btn ${lang === 'he' ? 'active' : 'inactive'}`} onClick={() => setLang('he')}>HE</button>
+          </div>
+        </div>
+
+        <div className="setting-row">
           <div>
-            <div className="section-label">{t.formRate}</div>
-            <input className="input-glass" type="number" value={rate} onChange={e => setRate(e.target.value)} min="0" step="0.5" />
+            <div style={{ fontSize: 16, fontWeight: 500 }}>{t.currencyLabel}</div>
           </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <button className="btn-ghost" onClick={onClose} style={{ flex: 1, padding: '13px 0' }}>{t.btnCancel}</button>
-            <button className="btn-primary" onClick={() => { if (name && rate) onSave(name, parseFloat(rate)); }} style={{ flex: 2, padding: '13px 0', fontSize: 15 }}>{t.btnSave}</button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['₪', '$', '€', '£'].map(c => (
+              <button key={c} className={`tab-btn ${cur === c ? 'active' : 'inactive'}`} style={{ padding: '8px 12px' }} onClick={() => setCur(c)}>{c}</button>
+            ))}
           </div>
+        </div>
+
+        <div className="setting-row">
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 500 }}>{t.backupData}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{t.backupDesc}</div>
+          </div>
+          <button className="btn-ghost" onClick={onBackup} style={{ padding: '8px 14px', fontSize: 13, display: 'flex', gap: 6, alignItems: 'center' }}>
+            <Download size={14}/> {t.btnSave}
+          </button>
+        </div>
+
+        <div className="setting-row">
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 500 }}>{t.restoreData}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{t.restoreDesc}</div>
+          </div>
+          <label className="btn-ghost" style={{ padding: '8px 14px', fontSize: 13, display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer' }}>
+            <input type="file" accept=".bak,.txt" style={{ display: 'none' }} onChange={handleFile} />
+            <UploadCloud size={14}/> {t.restoreData}
+          </label>
         </div>
       </div>
     </div>
@@ -710,15 +733,20 @@ function EditSitterModal({ t, sitter, onSave, onClose }) {
 ───────────────────────────────────────────── */
 function App() {
   const [lang, setLang]             = useStickyState('he', 'nl_lang');
+  const [cur, setCur]               = useStickyState('₪', 'nl_currency');
   const [sitters, setSitters]       = useStickyState([], 'nl_sitters');
   const [activeView, setActiveView] = useState('list');
   const [activeSitterId, setActiveSitterId] = useState(null);
+  
+  // Modals
   const [showAddSitter, setShowAddSitter]   = useState(false);
+  const [editingSitter, setEditingSitter]   = useState(null);
   const [showAddEntry,  setShowAddEntry]    = useState(false);
   const [editingEntry,  setEditingEntry]    = useState(null);
+  const [showSettings,  setShowSettings]    = useState(false);
+  
   const [toast, setToast] = useState('');
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
-  const [editingSitter, setEditingSitter] = useState(null);
 
   const t      = T[lang];
   const isRtl  = lang === 'he';
@@ -731,14 +759,20 @@ function App() {
   }, [isRtl]);
 
   const activeSitter = useMemo(() => sitters.find(s => s.id === activeSitterId), [sitters, activeSitterId]);
-
   const recalc    = es => es.reduce((a, e) => a + (e.earned - e.paid), 0);
   const sortedArr = es => [...es].sort((a, b) => new Date(b.date) - new Date(a.date) || b.timestamp - a.timestamp);
 
-  const handleAddSitter = (name, rate) => {
-    setSitters(prev => [...prev, { id: Date.now().toString(), name, rate, entries: [], balance: 0 }]);
+  const handleAddSitter = (data) => {
+    setSitters(prev => [...prev, { id: Date.now().toString(), entries: [], balance: 0, ...data }]);
     setShowAddSitter(false);
   };
+
+  const handleEditSitter = (data) => {
+    setSitters(prev => prev.map(s => s.id === editingSitter.id ? { ...s, ...data } : s));
+    setEditingSitter(null);
+  };
+
+  const handleDeleteSitter = (id) => { setSitters(prev => prev.filter(s => s.id !== id)); setActiveView('list'); };
 
   const handleSaveEntry = (entry) => {
     setSitters(prev => prev.map(s => {
@@ -759,11 +793,30 @@ function App() {
     }));
   };
 
-  const handleDeleteSitter = (id) => { setSitters(prev => prev.filter(s => s.id !== id)); setActiveView('list'); };
+  // Backup & Restore
+  const handleBackup = () => {
+    try {
+      const b64 = btoa(encodeURIComponent(JSON.stringify({ sitters })));
+      const blob = new Blob([b64], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `nanny-ledger-${todayStr()}.bak`;
+      a.click();
+      showToast(t.backupSuccess);
+    } catch (err) { showToast("Backup failed."); }
+  };
 
-  const handleEditSitter = (name, rate) => {
-    setSitters(prev => prev.map(s => s.id === editingSitter.id ? { ...s, name, rate } : s));
-    setEditingSitter(null);
+  const handleRestore = (text) => {
+    try {
+      const json = JSON.parse(decodeURIComponent(atob(text)));
+      if (json && json.sitters) {
+        setSitters(json.sitters);
+        showToast(t.restoreSuccess);
+        setShowSettings(false);
+      } else throw new Error();
+    } catch (err) {
+      showToast(t.restoreError);
+    }
   };
 
   const months     = useMemo(() => activeSitter ? groupByMonth(activeSitter.entries, lang) : [], [activeSitter, lang]);
@@ -786,15 +839,7 @@ function App() {
           </div>
         )}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {activeView === 'detail' && activeSitter && (
-            <KebabMenu isRtl={isRtl} items={[
-              { icon: '📤', label: t.menuShare,  onClick: () => doShare(activeSitter, t, lang, showToast) },
-              { icon: <Download size={14}/>, label: t.menuExport, onClick: () => doExportCSV(activeSitter, t) },
-              { icon: <Edit3 size={14}/>, label: t.menuEdit, onClick: () => setEditingSitter(activeSitter) },
-              { icon: <Trash2 size={14}/>, label: t.menuDelete, onClick: () => handleDeleteSitter(activeSitterId), danger: true },
-            ]} />
-          )}
-          <button onClick={() => setLang(l => l === 'en' ? 'he' : 'en')} className="btn-icon"><Languages size={15}/></button>
+          <button onClick={() => setShowSettings(true)} className="btn-icon"><SettingsIcon size={16}/></button>
         </div>
       </header>
 
@@ -805,7 +850,7 @@ function App() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22, paddingBottom: 13, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
               <div style={{ fontFamily: 'var(--font-serif)', fontSize: 13, fontStyle: 'italic', color: 'var(--text-muted)' }}>{t.tagline}</div>
-              <button className="btn-primary" onClick={() => setShowAddSitter(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 15px', fontSize: 13 }}>
+              <button className="btn-primary" onClick={() => setShowAddSitter(true)} style={{ gap: 6, padding: '9px 15px', fontSize: 13 }}>
                 <Plus size={14}/> {t.addBabysitter}
               </button>
             </div>
@@ -818,10 +863,10 @@ function App() {
             ) : (
               <div className="stagger" style={{ display: 'grid', gap: 13, gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))' }}>
                 {sitters.map(s => (
-                  <SitterCard key={s.id} sitter={s} t={t} lang={lang} isRtl={isRtl}
+                  <SitterCard key={s.id} sitter={s} t={t} cur={cur} lang={lang} isRtl={isRtl}
                     onClick={() => { setActiveSitterId(s.id); setActiveView('detail'); }}
-                    onShare={() => doShare(s, t, lang, showToast)}
-                    onExport={() => doExportCSV(s, t)}
+                    onShare={() => doShare(s, t, lang, cur, showToast)}
+                    onExport={() => doExportCSV(s, t, cur)}
                     onEdit={() => setEditingSitter(s)}
                     onDelete={() => handleDeleteSitter(s.id)}
                   />
@@ -837,13 +882,33 @@ function App() {
             {/* Hero */}
             <div className="glass" style={{ borderRadius: 24, padding: 'clamp(13px,4vw,20px)', marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent)', pointerEvents: 'none' }} />
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(21px,6vw,32px)', marginBottom: 2, lineHeight: 1.1 }}>{activeSitter.name}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>₪{activeSitter.rate}{t.perHour}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7 }}>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(21px,6vw,32px)', marginBottom: 2, lineHeight: 1.1 }}>{activeSitter.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>{cur}{activeSitter.rate}{t.perHour}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {activeSitter.phone && (
+                    <>
+                      <a href={`tel:${activeSitter.phone}`} className="btn-action btn-phone"><Phone size={16} /></a>
+                      <a href={`https://wa.me/${formatWA(activeSitter.phone)}`} target="_blank" className="btn-action btn-wa"><MessageCircle size={17} /></a>
+                    </>
+                  )}
+                  <KebabMenu isRtl={isRtl} items={[
+                    { icon: '📤', label: t.menuShare,  onClick: () => doShare(activeSitter, t, lang, cur, showToast) },
+                    { icon: <Download size={14}/>, label: t.menuExport, onClick: () => doExportCSV(activeSitter, t, cur) },
+                    { icon: <Edit3 size={14}/>, label: t.menuEdit, onClick: () => setEditingSitter(activeSitter) },
+                    { icon: <Trash2 size={14}/>, label: t.menuDelete, onClick: () => handleDeleteSitter(activeSitterId), danger: true },
+                  ]} />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7, marginBottom: activeSitter.balance !== 0 ? 12 : 0 }}>
                 {[
-                  { label: t.currentBalance,    value: <BalanceDisplay balance={activeSitter.balance} t={t} large /> },
+                  { label: t.currentBalance,    value: <BalanceDisplay balance={activeSitter.balance} cur={cur} t={t} large /> },
                   { label: t.summaryTotalWorked, value: <span className="stat-value" style={{ color: 'var(--accent)' }}>{totalHours.toFixed(1)}</span> },
-                  { label: t.summaryTotalPaid,   value: <span className="stat-value" style={{ color: 'var(--green)' }}>₪{totalPaid.toFixed(0)}</span> },
+                  { label: t.summaryTotalPaid,   value: <span className="stat-value" style={{ color: 'var(--green)' }}>{cur}{totalPaid.toFixed(0)}</span> },
                 ].map((s, i) => (
                   <div key={i} className="stat-card" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <div className="section-label">{s.label}</div>
@@ -851,6 +916,18 @@ function App() {
                   </div>
                 ))}
               </div>
+
+              {/* Settle Balance Button */}
+              {activeSitter.balance > 0 && (
+                <button className="btn-primary fade-in" onClick={() => setEditingEntry({ type: 'payment', paid: activeSitter.balance, isSettle: true })} style={{ width: '100%', padding: '12px', fontSize: 15, gap: 8, background: 'linear-gradient(135deg, #10b981, #059669)', boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)' }}>
+                   <CheckCircle size={18} /> {t.settleBalance} ({cur}{activeSitter.balance.toFixed(2)})
+                </button>
+              )}
+              {activeSitter.balance < 0 && (
+                <button className="btn-primary fade-in" onClick={() => setEditingEntry({ type: 'shift', isSettle: true })} style={{ width: '100%', padding: '12px', fontSize: 15, gap: 8, background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.3)' }}>
+                   <Clock size={18} /> {t.settlePrepaid}
+                </button>
+              )}
             </div>
 
             {/* Ledger */}
@@ -864,8 +941,7 @@ function App() {
                     <div className="month-divider">{group.label}</div>
                     <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
                       {group.entries.map(entry => (
-                        <EntryRow key={entry.id} entry={entry} t={t} lang={lang} isRtl={isRtl}
-                          onDelete={handleDeleteEntry} onEdit={e => setEditingEntry(e)} />
+                        <EntryRow key={entry.id} entry={entry} t={t} cur={cur} lang={lang} isRtl={isRtl} onDelete={handleDeleteEntry} onEdit={e => setEditingEntry(e)} />
                       ))}
                     </div>
                   </div>
@@ -874,7 +950,7 @@ function App() {
             )}
 
             {/* FAB */}
-            <button className="btn-primary" onClick={() => setShowAddEntry(true)} style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 7, padding: '14px 24px', fontSize: 15, zIndex: 40, whiteSpace: 'nowrap' }}>
+            <button className="btn-primary" onClick={() => setShowAddEntry(true)} style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', gap: 7, padding: '14px 24px', fontSize: 15, zIndex: 40, whiteSpace: 'nowrap' }}>
               <Plus size={17}/> {t.addEntry}
             </button>
           </div>
@@ -882,19 +958,38 @@ function App() {
       </main>
 
       {/* ── Modals ── */}
-      {showAddSitter && <AddSitterModal t={t} onSave={handleAddSitter} onClose={() => setShowAddSitter(false)} />}
-      {toast && <div className="toast">{toast}</div>}
-      {editingSitter && <EditSitterModal t={t} sitter={editingSitter} onSave={handleEditSitter} onClose={() => setEditingSitter(null)} />}
+      {showSettings && <SettingsModal t={t} lang={lang} setLang={setLang} cur={cur} setCur={setCur} onBackup={handleBackup} onRestore={handleRestore} onClose={() => setShowSettings(false)} />}
+      {showAddSitter && <SitterModal t={t} cur={cur} onSave={handleAddSitter} onClose={() => setShowAddSitter(false)} />}
+      {editingSitter && <SitterModal t={t} cur={cur} initial={editingSitter} onSave={handleEditSitter} onClose={() => setEditingSitter(null)} />}
       {(showAddEntry || editingEntry) && activeSitter && (
-        <EntryForm t={t} sitter={activeSitter} initial={editingEntry || null}
-          onSave={handleSaveEntry} onClose={() => { setShowAddEntry(false); setEditingEntry(null); }} />
+        <EntryForm t={t} cur={cur} sitter={activeSitter} initial={editingEntry || null} onSave={handleSaveEntry} onClose={() => { setShowAddEntry(false); setEditingEntry(null); }} />
       )}
+      
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
 
+    // Mount
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(React.createElement(App));
   </script>
+  
+  <!-- Register the Service Worker for PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(registration => {
+            console.log('ServiceWorker registered successfully with scope: ', registration.scope);
+          })
+          .catch(error => {
+            console.log('ServiceWorker registration failed: ', error);
+          });
+      });
+    }
+  </script>
 </body>
 </html>
+
+
