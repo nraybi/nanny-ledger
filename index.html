@@ -106,7 +106,8 @@ const T = {
     settingsTitle: "Settings", languageLabel: "Language", currencyLabel: "Currency",
     backupData: "Backup Data", restoreData: "Restore Data", backupDesc: "Save a secure backup file",
     restoreDesc: "Load from backup file", backupSuccess: "Backup downloaded!", restoreSuccess: "Data restored successfully!",
-    restoreError: "Invalid backup file.", settleBalance: "Settle Balance", settlePrepaid: "Clear Prepaid"
+    restoreError: "Invalid backup file.", settleBalance: "Settle Balance", settlePrepaid: "Clear Prepaid",
+    installApp: "Install App", installDesc: "Add to your home screen", installBtn: "Install"
   },
   he: {
     appTitle: "פנקס בייביסיטר", tagline: "מעקב שעות ותשלומים בסטייל.",
@@ -139,7 +140,8 @@ const T = {
     settingsTitle: "הגדרות", languageLabel: "שפה", currencyLabel: "מטבע",
     backupData: "גיבוי נתונים", restoreData: "שחזור נתונים", backupDesc: "שמירת קובץ גיבוי מאובטח",
     restoreDesc: "טעינה מקובץ גיבוי", backupSuccess: "הגיבוי הורד בהצלחה!", restoreSuccess: "הנתונים שוחזרו בהצלחה!",
-    restoreError: "קובץ גיבוי לא תקין.", settleBalance: "סגור חוב", settlePrepaid: "אפס תשלום מראש"
+    restoreError: "קובץ גיבוי לא תקין.", settleBalance: "סגור חוב", settlePrepaid: "אפס תשלום מראש",
+    installApp: "התקן אפליקציה", installDesc: "הוסף למסך הבית שלך", installBtn: "התקן"
   }
 };
 
@@ -341,7 +343,6 @@ const css = `
   .setting-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.08);}
   .setting-row:last-child{border-bottom:none;}
 `;
-
 
 /* ─────────────────────────────────────────────
    Balance Display
@@ -664,7 +665,7 @@ function SitterCard({ sitter, t, cur, lang, onClick, isRtl, onShare, onExport, o
 /* ─────────────────────────────────────────────
    Settings Modal
 ───────────────────────────────────────────── */
-function SettingsModal({ t, lang, setLang, cur, setCur, onBackup, onRestore, onClose }) {
+function SettingsModal({ t, lang, setLang, cur, setCur, onBackup, onRestore, deferredPrompt, onInstall, onClose }) {
   const handleFile = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -681,6 +682,19 @@ function SettingsModal({ t, lang, setLang, cur, setCur, onBackup, onRestore, onC
           <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 23, margin: 0 }}>{t.settingsTitle}</h2>
           <button onClick={onClose} className="btn-icon"><X size={16}/></button>
         </div>
+
+        {/* Dynamic Install App Button (Only shows if Chrome allows it) */}
+        {deferredPrompt && (
+          <div className="setting-row" style={{ background: 'rgba(124, 58, 237, 0.15)', margin: '-10px -22px 14px', padding: '16px 22px', borderBottom: '1px solid rgba(124, 58, 237, 0.3)' }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 500, color: '#c4b5fd' }}>{t.installApp}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{t.installDesc}</div>
+            </div>
+            <button className="btn-primary" onClick={onInstall} style={{ padding: '8px 16px', fontSize: 13, gap: 6 }}>
+              <Download size={14}/> {t.installBtn}
+            </button>
+          </div>
+        )}
 
         <div className="setting-row">
           <div>
@@ -738,18 +752,36 @@ function App() {
   const [activeView, setActiveView] = useState('list');
   const [activeSitterId, setActiveSitterId] = useState(null);
   
-  // Modals
+  // Modals & PWA State
   const [showAddSitter, setShowAddSitter]   = useState(false);
   const [editingSitter, setEditingSitter]   = useState(null);
   const [showAddEntry,  setShowAddEntry]    = useState(false);
   const [editingEntry,  setEditingEntry]    = useState(null);
   const [showSettings,  setShowSettings]    = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
   
   const [toast, setToast] = useState('');
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
   const t      = T[lang];
   const isRtl  = lang === 'he';
+
+  // Listen for the PWA install event
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault(); // Prevent Chrome from showing the mini-infobar automatically
+      setDeferredPrompt(e); // Save it so we can trigger it from our Settings menu
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') setDeferredPrompt(null);
+  };
 
   useEffect(() => {
     document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
@@ -839,7 +871,11 @@ function App() {
           </div>
         )}
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={() => setShowSettings(true)} className="btn-icon"><SettingsIcon size={16}/></button>
+          {/* Notification dot on settings if install is available */}
+          <button onClick={() => setShowSettings(true)} className="btn-icon" style={{ position: 'relative' }}>
+            <SettingsIcon size={16}/>
+            {deferredPrompt && <div style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, background: 'var(--red)', borderRadius: '50%' }} />}
+          </button>
         </div>
       </header>
 
@@ -958,7 +994,7 @@ function App() {
       </main>
 
       {/* ── Modals ── */}
-      {showSettings && <SettingsModal t={t} lang={lang} setLang={setLang} cur={cur} setCur={setCur} onBackup={handleBackup} onRestore={handleRestore} onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsModal t={t} lang={lang} setLang={setLang} cur={cur} setCur={setCur} onBackup={handleBackup} onRestore={handleRestore} deferredPrompt={deferredPrompt} onInstall={handleInstallClick} onClose={() => setShowSettings(false)} />}
       {showAddSitter && <SitterModal t={t} cur={cur} onSave={handleAddSitter} onClose={() => setShowAddSitter(false)} />}
       {editingSitter && <SitterModal t={t} cur={cur} initial={editingSitter} onSave={handleEditSitter} onClose={() => setEditingSitter(null)} />}
       {(showAddEntry || editingEntry) && activeSitter && (
@@ -975,7 +1011,7 @@ function App() {
     root.render(React.createElement(App));
   </script>
   
-  <!-- Register the Service Worker for PWA -->
+  <!-- Register the Service Worker -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
