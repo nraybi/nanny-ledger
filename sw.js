@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nanny-ledger-v1';
+const CACHE_NAME = 'nanny-ledger-v2';
 
 // We want to aggressively cache our main local files
 const ASSETS_TO_CACHE = [
