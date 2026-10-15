@@ -70,6 +70,7 @@
     const Phone         = makeIcon('Phone');
     const MessageCircle = makeIcon('MessageCircle');
     const CheckCircle   = makeIcon('CheckCircle');
+    const Play          = makeIcon('Play');
 
 /* ─────────────────────────────────────────────
    i18n
@@ -100,7 +101,7 @@ const T = {
     shareSummary: "Share Summary", shareTitle: "Babysitter Summary",
     shareShifts: "shifts", shareHours: "hours", sharePaid: "Paid",
     shareBalance: "Balance", shareThanks: "Thanks!", shareMonth: "Summary for",
-    validationTimes: "Please enter start and end times.", validationAmount: "Please enter an amount.",
+    validationStart: "Please enter at least a start time.", btnStartShift: "Start shift", btnEndShift: "End shift", inProgress: "In progress", sinceLbl: "since", soFar: "so far", endNow: "End now", accruing: "accruing", formStartOpenHint: "You can add the end time later.", rateChangedTitle: "Hourly rate changed", rateApplyAll: "Update {n} unsettled shifts", rateApplyOne: "Update 1 unsettled shift", rateApplyAllSub: "Balance {from} → {to}", arrow: "→", rateNewOnly: "New shifts only", rateNewOnlySub: "Existing shifts keep their old rate", rateApplied: "Rate updated", validationAmount: "Please enter an amount.",
     copied: "Copied to clipboard!", menuShare: "Share Summary", menuExport: "Export CSV",
     menuEdit: "Edit Babysitter", menuDelete: "Delete Babysitter", editSitterTitle: "Edit Babysitter",
     settingsTitle: "Settings", languageLabel: "Language", currencyLabel: "Currency",
@@ -134,7 +135,7 @@ const T = {
     shareSummary: "שתף סיכום", shareTitle: "סיכום בייביסיטר",
     shareShifts: "משמרות", shareHours: "שעות", sharePaid: "שולם",
     shareBalance: "יתרה", shareThanks: "תודה!", shareMonth: "סיכום עבור",
-    validationTimes: "נא להזין שעת התחלה וסיום.", validationAmount: "נא להזין סכום.",
+    validationStart: "נא להזין לפחות שעת התחלה.", btnStartShift: "התחל משמרת", btnEndShift: "סיים משמרת", inProgress: "בעיצומה", sinceLbl: "מאז", soFar: "עד כה", endNow: "סיים עכשיו", accruing: "נצבר", formStartOpenHint: "אפשר להוסיף שעת סיום מאוחר יותר.", rateChangedTitle: "תעריף השעה השתנה", rateApplyAll: "עדכן {n} משמרות שלא שולמו", rateApplyOne: "עדכן משמרת אחת שלא שולמה", rateApplyAllSub: "יתרה {from} ← {to}", arrow: "←", rateNewOnly: "משמרות חדשות בלבד", rateNewOnlySub: "משמרות קיימות נשארות בתעריף הישן", rateApplied: "התעריף עודכן", validationAmount: "נא להזין סכום.",
     copied: "הועתק ללוח!", menuShare: "שתף סיכום", menuExport: "ייצא CSV",
     menuEdit: "ערוך בייביסיטר", menuDelete: "מחק בייביסיטר", editSitterTitle: "ערוך בייביסיטר",
     settingsTitle: "הגדרות", languageLabel: "שפה", currencyLabel: "מטבע",
@@ -166,6 +167,27 @@ const calcHours = (s, e) => {
 };
 const nowStr = () => { const n = new Date(); return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`; };
 const todayStr = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; };
+const isOpenShift = (e) => (e.type || 'shift') === 'shift' && !!e.start && !e.end;
+const openHoursSoFar = (e, nowMs) => Math.max(0, (nowMs - new Date(`${e.date}T${e.start}:00`).getTime()) / 3600000);
+const closeShift = (e, rate) => {
+  const end = nowStr();
+  const hours = calcHours(e.start, end);
+  return { ...e, end, hours, rate, earned: hours * rate + e.bonus, crossesMidnight: end < e.start };
+};
+// Unsettled = shifts not covered by payments, with payments applied to the oldest shifts first.
+// Open shifts are always unsettled. A shift only partly covered by payments counts as settled.
+const unpaidShiftIds = (entries) => {
+  const chrono = [...entries].reverse();
+  const totalPaid = chrono.reduce((a, e) => a + e.paid, 0);
+  let earnedBefore = 0;
+  const ids = [];
+  chrono.forEach(e => {
+    if ((e.type || 'shift') !== 'shift') return;
+    if (isOpenShift(e) || earnedBefore >= totalPaid - 0.005) ids.push(e.id);
+    earnedBefore += e.earned;
+  });
+  return ids;
+};
 const groupByMonth = (entries, lang) => {
   const groups = {};
   entries.forEach(e => {
@@ -189,7 +211,7 @@ const doExportCSV = (sitter, t, cur) => {
   const headers = ['Date','Type','Start','End','Hours','Rate','Earned','Bonus','Paid','Balance Effect','Note'];
   const rows = sitter.entries.map(e => [
     e.date, e.type || 'shift', e.start || '', e.end || '',
-    e.hours, sitter.rate, e.earned.toFixed(2), e.bonus,
+    e.hours, e.rate ?? sitter.rate, e.earned.toFixed(2), e.bonus,
     e.paid.toFixed(2), (e.earned - e.paid).toFixed(2),
     '"' + (e.note || '').replace(/"/g, '""') + '"'
   ]);
@@ -299,13 +321,23 @@ const css = `
   .sitter-card:active{transform:scale(0.98);}
 
   .entry-row{position:relative;border-radius:16px;user-select:none;-webkit-user-select:none;}
-  .entry-row-inner{display:flex;align-items:center;gap:11px;padding:13px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;transition:all 0.15s;}
+  .entry-row-inner{cursor:pointer;display:flex;align-items:center;gap:11px;padding:13px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;transition:all 0.15s;}
 
   .pill{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:50px;font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;}
   .pill-shift{background:rgba(167,139,250,0.18);color:#c4b5fd;border:1px solid rgba(167,139,250,0.25);}
   .pill-payment{background:rgba(52,211,153,0.15);color:#6ee7b7;border:1px solid rgba(52,211,153,0.25);}
   .pill-prepaid{background:rgba(251,191,36,0.15);color:#fcd34d;border:1px solid rgba(251,191,36,0.25);}
   .pill-bonus{background:rgba(244,114,182,0.18);color:#f9a8d4;border:1px solid rgba(244,114,182,0.25);}
+  .entry-row-inner:active{background:rgba(255,255,255,0.09);}
+  .pill-open{background:rgba(245,158,11,0.18);color:#fcd34d;border:1px solid rgba(245,158,11,0.3);}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:#fbbf24;display:inline-block;flex-shrink:0;animation:livePulse 1.6s ease-in-out infinite;}
+  @keyframes livePulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.35;transform:scale(0.7);}}
+  .time-tile{position:relative;display:flex;align-items:center;justify-content:center;height:56px;border-radius:var(--radius-sm);background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);cursor:pointer;transition:all 0.2s;}
+  .time-tile:active{background:rgba(255,255,255,0.12);border-color:var(--accent);}
+  .time-tile-value{font-family:var(--font-serif);font-size:28px;letter-spacing:0.02em;}
+  .time-tile-value.empty{color:var(--text-dim);}
+  .time-native{position:absolute;inset:0;width:100%;height:100%;opacity:0;pointer-events:none;}
+  .time-now{width:100%;height:44px;margin-top:6px;font-size:13px;}
 
   .stat-card{padding:clamp(9px,2.8vw,15px);border-radius:var(--radius);min-width:0;overflow:hidden;}
   .stat-value{font-family:var(--font-serif);font-size:clamp(14px,4vw,22px);line-height:1.2;word-break:break-word;}
@@ -418,13 +450,16 @@ function KebabMenu({ items, small, isRtl }) {
 /* ─────────────────────────────────────────────
    Entry Row
 ───────────────────────────────────────────── */
-function EntryRow({ entry, t, lang, cur, isRtl, onDelete, onEdit }) {
+function EntryRow({ entry, t, lang, cur, sitterRate, nowMs, onEndNow, onEdit }) {
+  const open = isOpenShift(entry);
+  const rate = entry.rate ?? sitterRate;
+  const soFar = open ? openHoursSoFar(entry, nowMs) : 0;
   const dt = new Date(entry.date + 'T00:00:00');
   const monthShort = dt.toLocaleString(lang === 'he' ? 'he-IL' : 'en', { month: 'short' });
 
   return (
     <div className="entry-row">
-      <div className="entry-row-inner">
+      <div className="entry-row-inner" onClick={() => onEdit(entry)}>
         <div style={{ minWidth: 44, textAlign: 'center', background: 'rgba(255,255,255,0.07)', borderRadius: 11, padding: '6px 3px', flexShrink: 0 }}>
           <div style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{monthShort}</div>
           <div style={{ fontSize: 19, fontFamily: 'var(--font-serif)', lineHeight: 1.1 }}>{dt.getDate()}</div>
@@ -432,6 +467,7 @@ function EntryRow({ entry, t, lang, cur, isRtl, onDelete, onEdit }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', marginBottom: 3 }}>
             {entry.hours > 0            && <span className="pill pill-shift">{t.typeShift}</span>}
+            {open && <span className="pill pill-open"><span className="live-dot" />{t.inProgress}</span>}
             {entry.type === 'payment'   && <span className="pill pill-payment">{t.typePayment}</span>}
             {entry.type === 'prepaid'   && <span className="pill pill-prepaid">{t.typePrepaid}</span>}
             {entry.bonus > 0            && <span className="pill pill-bonus">+{cur}{entry.bonus} {t.typeBonus}</span>}
@@ -443,17 +479,44 @@ function EntryRow({ entry, t, lang, cur, isRtl, onDelete, onEdit }) {
               {entry.crossesMidnight && <span style={{ color: 'var(--amber)' }}>⚠</span>}
             </div>
           )}
+          {open && (
+            <>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <Clock size={10} />{t.sinceLbl} {entry.start} · {soFar.toFixed(1)} {t.hours}
+              </div>
+              <button className="btn-primary" onClick={e => { e.stopPropagation(); onEndNow(entry); }} style={{ marginTop: 7, padding: '7px 14px', fontSize: 12 }}>{t.endNow}</button>
+            </>
+          )}
           {entry.type === 'prepaid' && <div style={{ fontSize: 10, color: 'var(--amber)' }}>{t.prepaidNote}</div>}
         </div>
         <div style={{ textAlign: 'end', flexShrink: 0, marginInlineEnd: 4 }}>
+          {open && (
+            <div>
+              <div style={{ color: 'var(--amber)', fontFamily: 'var(--font-serif)', fontSize: 14 }}>≈{cur}{(soFar * rate).toFixed(0)}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-dim)' }}>{t.accruing}</div>
+            </div>
+          )}
           {entry.earned > 0 && <div style={{ color: 'var(--red)',   fontFamily: 'var(--font-serif)', fontSize: 14 }}>+{cur}{entry.earned.toFixed(2)}</div>}
           {entry.paid   > 0 && <div style={{ color: 'var(--green)', fontFamily: 'var(--font-serif)', fontSize: 14 }}>−{cur}{entry.paid.toFixed(2)}</div>}
         </div>
-        <KebabMenu small isRtl={isRtl} items={[
-          { icon: <Edit3 size={13}/>, label: t.editEntry, onClick: () => onEdit(entry) },
-          { icon: <Trash2 size={13}/>, label: t.yes, onClick: () => onDelete(entry.id), danger: true },
-        ]} />
       </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Time Field (tile opens the native picker on tap)
+───────────────────────────────────────────── */
+function TimeField({ label, value, onChange, nowLabel }) {
+  const inputRef = useRef(null);
+  return (
+    <div>
+      <div className="section-label">{label}</div>
+      <div className="time-tile" role="button" aria-label={label} onClick={() => inputRef.current.showPicker()}>
+        <span className={`time-tile-value${value ? '' : ' empty'}`} dir="ltr">{value || '--:--'}</span>
+        <input ref={inputRef} className="time-native" type="time" value={value} onChange={e => onChange(e.target.value)} tabIndex={-1} />
+      </div>
+      <button type="button" className="btn-ghost time-now" onClick={() => onChange(nowStr())}>{nowLabel}</button>
     </div>
   );
 }
@@ -461,7 +524,7 @@ function EntryRow({ entry, t, lang, cur, isRtl, onDelete, onEdit }) {
 /* ─────────────────────────────────────────────
    Entry Form (Add & Edit)
 ───────────────────────────────────────────── */
-function EntryForm({ t, cur, sitter, initial, onSave, onClose }) {
+function EntryForm({ t, cur, sitter, initial, onSave, onDelete, onClose }) {
   const isEdit = !!initial && !initial.isSettle;
   const isSettle = !!initial?.isSettle;
   const [tab,     setTab]     = useState(initial?.type || 'shift');
@@ -473,23 +536,25 @@ function EntryForm({ t, cur, sitter, initial, onSave, onClose }) {
   const [prepaid, setPrepaid] = useState(initial?.type === 'prepaid' ? String(initial.paid) : '');
   const [note,    setNote]    = useState(initial?.note   || '');
   const [error,   setError]   = useState('');
+  const [confirmDel, setConfirmDel] = useState(false);
 
   const triggerError = (msg) => { setError(msg); setTimeout(() => setError(''), 2500); };
   const hours = calcHours(start, end);
+  const rate = initial?.rate ?? sitter.rate;
   const crossesMidnight = !!(start && end && hours > 0 && end < start);
 
   const handleSave = () => {
-    if (tab === 'shift'   && (!start || !end)) { triggerError(t.validationTimes);  return; }
+    if (tab === 'shift'   && !start) { triggerError(t.validationStart);  return; }
     if (tab === 'payment' && !paid)            { triggerError(t.validationAmount); return; }
     if (tab === 'prepaid' && !prepaid)         { triggerError(t.validationAmount); return; }
     setError('');
     const h         = tab === 'shift' ? hours : 0;
-    const earnedAmt = tab === 'shift' ? h * sitter.rate + (parseFloat(bonus) || 0) : 0;
+    const earnedAmt = tab === 'shift' && end ? h * rate + (parseFloat(bonus) || 0) : 0;
     const paidAmt   = tab === 'prepaid' ? parseFloat(prepaid) : (parseFloat(paid) || 0);
     onSave({ id: isEdit ? initial.id : Date.now().toString(), date,
       start: tab === 'shift' ? start : '', end: tab === 'shift' ? end : '',
       hours: h, earned: earnedAmt, paid: paidAmt, bonus: parseFloat(bonus) || 0, note,
-      type: tab, crossesMidnight, timestamp: initial?.timestamp || Date.now() });
+      type: tab, crossesMidnight, ...(tab === 'shift' && { rate }), timestamp: initial?.timestamp || Date.now() });
   };
 
   const moneyField = (label, color, val, setter) => (
@@ -526,18 +591,14 @@ function EntryForm({ t, cur, sitter, initial, onSave, onClose }) {
 
           {tab === 'shift' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: 'rgba(255,255,255,0.04)', padding: 13, borderRadius: 14, border: '1px solid rgba(255,255,255,0.08)' }}>
-              {[['start', start, setStart, t.formStart], ['end', end, setEnd, t.formEnd]].map(([, val, setter, label]) => (
-                <div key={label}>
-                  <div className="section-label">{label}</div>
-                  <div style={{ display: 'flex', gap: 5 }}>
-                    <input className="input-glass" type="time" value={val} onChange={e => setter(e.target.value)} style={{ flex: 1, padding: '9px 9px' }} />
-                    <button className="btn-ghost" onClick={() => setter(nowStr())} style={{ padding: '8px 8px', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap' }}>{t.btnNow}</button>
-                  </div>
-                </div>
-              ))}
+              <TimeField label={t.formStart} value={start} onChange={setStart} nowLabel={t.btnNow} />
+              <TimeField label={t.formEnd} value={end} onChange={setEnd} nowLabel={t.btnNow} />
+              {start && !end && (
+                <div style={{ gridColumn: '1/-1', fontSize: 12, color: 'var(--amber)' }}>{t.formStartOpenHint}</div>
+              )}
               {start && end && hours > 0 && (
                 <div style={{ gridColumn: '1/-1', fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>
-                  = {hours} {t.hours} · {cur}{(hours * sitter.rate).toFixed(2)}
+                  = {hours} {t.hours} · {cur}{(hours * rate).toFixed(2)}
                   {crossesMidnight && <span style={{ color: 'var(--amber)', marginInlineStart: 8 }}>{t.crossesMidnight}</span>}
                 </div>
               )}
@@ -571,6 +632,12 @@ function EntryForm({ t, cur, sitter, initial, onSave, onClose }) {
               {isSettle ? t.settleBalance : t.btnSave}
             </button>
           </div>
+          {isEdit && (
+            <button className="btn-ghost" onClick={() => { if (confirmDel) onDelete(initial.id); else { setConfirmDel(true); setTimeout(() => setConfirmDel(false), 3000); } }}
+              style={{ padding: '12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, color: confirmDel ? '#fff' : '#fca5a5', background: confirmDel ? 'rgba(239,68,68,0.55)' : undefined, borderColor: 'rgba(239,68,68,0.45)' }}>
+              <Trash2 size={14} />{confirmDel ? t.deleteConfirm : t.yes}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -619,7 +686,8 @@ function SitterModal({ t, cur, initial, onSave, onClose }) {
 /* ─────────────────────────────────────────────
    Sitter Card (List View)
 ───────────────────────────────────────────── */
-function SitterCard({ sitter, t, cur, lang, onClick, isRtl, onShare, onExport, onEdit, onDelete }) {
+function SitterCard({ sitter, t, cur, lang, onClick, isRtl, onShare, onExport, onEdit, onDelete, onToggleShift }) {
+  const open = sitter.entries.find(isOpenShift);
   const totalHours = sitter.entries.reduce((a, e) => a + e.hours, 0);
   const totalPaid  = sitter.entries.reduce((a, e) => a + e.paid,  0);
   return (
@@ -654,9 +722,46 @@ function SitterCard({ sitter, t, cur, lang, onClick, isRtl, onShare, onExport, o
           </div>
         ))}
       </div>
+      <div onClick={e => e.stopPropagation()} style={{ marginBottom: 13 }}>
+        <button className={open ? 'btn-primary' : 'btn-ghost'} onClick={onToggleShift}
+          style={{ width: '100%', height: 46, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, ...(open && { background: 'linear-gradient(135deg, #f59e0b, #d97706)' }) }}>
+          {open ? <><span className="live-dot" style={{ background: '#fff' }} />{t.btnEndShift} · {t.sinceLbl} {open.start}</> : <><Play size={14} />{t.btnStartShift}</>}
+        </button>
+      </div>
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 11, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <BalanceDisplay balance={sitter.balance} cur={cur} t={t} />
         <div style={{ color: 'var(--text-dim)' }}>{isRtl ? <ChevronLeft size={17}/> : <ChevronRight size={17}/>}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Rate Change Modal
+───────────────────────────────────────────── */
+function RateChangeModal({ t, cur, sitter, newRate, ids, onApply, onKeep, onCancel }) {
+  const delta = sitter.entries
+    .filter(e => ids.includes(e.id) && !isOpenShift(e))
+    .reduce((a, e) => a + (e.hours * newRate + e.bonus - e.earned), 0);
+  const fmt = (n) => `${cur}${n.toFixed(2)}`;
+  const optionStyle = { padding: '14px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, width: '100%' };
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
+      <div className="modal-sheet">
+        <div className="drag-handle" />
+        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, margin: '0 0 6px' }}>{t.rateChangedTitle}</h2>
+        <div style={{ fontSize: 15, color: 'var(--accent)', marginBottom: 18 }}>{cur}{sitter.rate} {t.arrow} {cur}{newRate}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <button className="btn-primary" onClick={onApply} style={optionStyle}>
+            <span style={{ fontSize: 15 }}>{ids.length === 1 ? t.rateApplyOne : t.rateApplyAll.replace('{n}', ids.length)}</span>
+            <span style={{ fontSize: 12, opacity: 0.8 }}>{t.rateApplyAllSub.replace('{from}', fmt(sitter.balance)).replace('{to}', fmt(sitter.balance + delta))}</span>
+          </button>
+          <button className="btn-ghost" onClick={onKeep} style={optionStyle}>
+            <span style={{ fontSize: 15 }}>{t.rateNewOnly}</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t.rateNewOnlySub}</span>
+          </button>
+          <button className="btn-ghost" onClick={onCancel} style={{ padding: '11px 0' }}>{t.btnCancel}</button>
+        </div>
       </div>
     </div>
   );
@@ -760,6 +865,8 @@ function App() {
   const [showSettings,  setShowSettings]    = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   
+  const [rateChange, setRateChange] = useState(null);
+  const [nowMs, setNowMs] = useState(Date.now());
   const [toast, setToast] = useState('');
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
@@ -799,10 +906,58 @@ function App() {
     setShowAddSitter(false);
   };
 
+  const commitSitterEdit = (id, data, applyIds) => {
+    setSitters(prev => prev.map(s => {
+      if (s.id !== id) return s;
+      if (data.rate === s.rate) return { ...s, ...data };
+      const entries = s.entries.map(e => {
+        if ((e.type || 'shift') !== 'shift') return e;
+        if (!applyIds.includes(e.id)) return { ...e, rate: e.rate ?? s.rate };
+        return { ...e, rate: data.rate, earned: isOpenShift(e) ? 0 : e.hours * data.rate + e.bonus };
+      });
+      return { ...s, ...data, entries, balance: recalc(entries) };
+    }));
+  };
+
   const handleEditSitter = (data) => {
-    setSitters(prev => prev.map(s => s.id === editingSitter.id ? { ...s, ...data } : s));
+    const sitter = sitters.find(s => s.id === editingSitter.id);
+    const ids = data.rate !== sitter.rate ? unpaidShiftIds(sitter.entries) : [];
+    if (ids.length) { setRateChange({ sitter, data, ids }); return; }
+    commitSitterEdit(sitter.id, data, []);
     setEditingSitter(null);
   };
+
+  const resolveRateChange = (applyIds) => {
+    commitSitterEdit(rateChange.sitter.id, rateChange.data, applyIds);
+    setRateChange(null);
+    setEditingSitter(null);
+    showToast(t.rateApplied);
+  };
+
+  const handleStartShift = (sitterId) => {
+    setSitters(prev => prev.map(s => {
+      if (s.id !== sitterId) return s;
+      const entry = { id: Date.now().toString(), date: todayStr(), start: nowStr(), end: '', hours: 0, earned: 0, paid: 0, bonus: 0, note: '', type: 'shift', crossesMidnight: false, rate: s.rate, timestamp: Date.now() };
+      const entries = sortedArr([entry, ...s.entries]);
+      return { ...s, entries, balance: recalc(entries) };
+    }));
+  };
+
+  const handleEndShift = (sitterId, entryId) => {
+    setSitters(prev => prev.map(s => {
+      if (s.id !== sitterId) return s;
+      const entries = sortedArr(s.entries.map(e => e.id === entryId ? closeShift(e, e.rate ?? s.rate) : e));
+      return { ...s, entries, balance: recalc(entries) };
+    }));
+  };
+
+  const hasOpenShift = sitters.some(s => s.entries.some(isOpenShift));
+  useEffect(() => {
+    if (!hasOpenShift) return;
+    setNowMs(Date.now());
+    const id = setInterval(() => setNowMs(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, [hasOpenShift]);
 
   const handleDeleteSitter = (id) => { setSitters(prev => prev.filter(s => s.id !== id)); setActiveView('list'); };
 
@@ -854,6 +1009,8 @@ function App() {
   const months     = useMemo(() => activeSitter ? groupByMonth(activeSitter.entries, lang) : [], [activeSitter, lang]);
   const totalPaid  = activeSitter?.entries.reduce((a, e) => a + e.paid,  0) ?? 0;
   const totalHours = activeSitter?.entries.reduce((a, e) => a + e.hours, 0) ?? 0;
+  const openShift  = activeSitter?.entries.find(isOpenShift);
+  const openSoFar  = openShift ? openHoursSoFar(openShift, nowMs) : 0;
 
   return (
     <div style={{ minHeight: '100vh', fontFamily: 'var(--font-sans)', position: 'relative' }}>
@@ -904,6 +1061,7 @@ function App() {
                     onShare={() => doShare(s, t, lang, cur, showToast)}
                     onExport={() => doExportCSV(s, t, cur)}
                     onEdit={() => setEditingSitter(s)}
+                    onToggleShift={() => { const o = s.entries.find(isOpenShift); if (o) handleEndShift(s.id, o.id); else handleStartShift(s.id); }}
                     onDelete={() => handleDeleteSitter(s.id)}
                   />
                 ))}
@@ -940,7 +1098,7 @@ function App() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7, marginBottom: activeSitter.balance !== 0 ? 12 : 0 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7, marginBottom: (activeSitter.balance !== 0 || openShift) ? 12 : 0 }}>
                 {[
                   { label: t.currentBalance,    value: <BalanceDisplay balance={activeSitter.balance} cur={cur} t={t} large /> },
                   { label: t.summaryTotalWorked, value: <span className="stat-value" style={{ color: 'var(--accent)' }}>{totalHours.toFixed(1)}</span> },
@@ -952,6 +1110,16 @@ function App() {
                   </div>
                 ))}
               </div>
+
+              {openShift && (
+                <div className="fade-in" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12, padding: '11px 13px', borderRadius: 14, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#fcd34d' }}><span className="live-dot" />{t.inProgress} · {t.sinceLbl} {openShift.start}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{openSoFar.toFixed(1)} {t.hours} · ≈{cur}{(openSoFar * (openShift.rate ?? activeSitter.rate)).toFixed(0)} {t.accruing}</div>
+                  </div>
+                  <button className="btn-primary" onClick={() => handleEndShift(activeSitterId, openShift.id)} style={{ padding: '9px 16px', fontSize: 13, flexShrink: 0 }}>{t.endNow}</button>
+                </div>
+              )}
 
               {/* Settle Balance Button */}
               {activeSitter.balance > 0 && (
@@ -977,7 +1145,7 @@ function App() {
                     <div className="month-divider">{group.label}</div>
                     <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 4 }}>
                       {group.entries.map(entry => (
-                        <EntryRow key={entry.id} entry={entry} t={t} cur={cur} lang={lang} isRtl={isRtl} onDelete={handleDeleteEntry} onEdit={e => setEditingEntry(e)} />
+                        <EntryRow key={entry.id} entry={entry} t={t} cur={cur} lang={lang} sitterRate={activeSitter.rate} nowMs={nowMs} onEndNow={e => handleEndShift(activeSitterId, e.id)} onEdit={e => setEditingEntry(e)} />
                       ))}
                     </div>
                   </div>
@@ -997,8 +1165,9 @@ function App() {
       {showSettings && <SettingsModal t={t} lang={lang} setLang={setLang} cur={cur} setCur={setCur} onBackup={handleBackup} onRestore={handleRestore} deferredPrompt={deferredPrompt} onInstall={handleInstallClick} onClose={() => setShowSettings(false)} />}
       {showAddSitter && <SitterModal t={t} cur={cur} onSave={handleAddSitter} onClose={() => setShowAddSitter(false)} />}
       {editingSitter && <SitterModal t={t} cur={cur} initial={editingSitter} onSave={handleEditSitter} onClose={() => setEditingSitter(null)} />}
+      {rateChange && <RateChangeModal t={t} cur={cur} sitter={rateChange.sitter} newRate={rateChange.data.rate} ids={rateChange.ids} onApply={() => resolveRateChange(rateChange.ids)} onKeep={() => resolveRateChange([])} onCancel={() => setRateChange(null)} />}
       {(showAddEntry || editingEntry) && activeSitter && (
-        <EntryForm t={t} cur={cur} sitter={activeSitter} initial={editingEntry || null} onSave={handleSaveEntry} onClose={() => { setShowAddEntry(false); setEditingEntry(null); }} />
+        <EntryForm t={t} cur={cur} sitter={activeSitter} initial={editingEntry || null} onSave={handleSaveEntry} onDelete={id => { handleDeleteEntry(id); setEditingEntry(null); }} onClose={() => { setShowAddEntry(false); setEditingEntry(null); }} />
       )}
       
       {toast && <div className="toast">{toast}</div>}
